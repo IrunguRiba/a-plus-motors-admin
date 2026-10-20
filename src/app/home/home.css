@@ -4,14 +4,12 @@
   background-color: #ffffff;
   font-family: var(--font-main, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
   color: #0a0a0a;
-
 }
 
 .home-layout {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
- 
 }
 
 .top-nav-bar {
@@ -20,9 +18,9 @@
   align-items: stretch;
   gap: 24px;
   height: 68px;
+  padding-bottom: 5px;
   background-color: #ffffff;
   border-bottom: 1px solid #252525;
- padding-bottom: 5px;
 }
 
 .nav-links {
@@ -58,17 +56,6 @@
   margin-left: 0;
 }
 
-kbd {
-  display: inline-block;
-  min-width: 18px;
-  margin-right: 6px;
-  padding: 5px 10px;
-  border: 1px solid var(--line);
-  font: inherit;
-  font-size: 9px;
-  text-align: end;
-}
-
 .nav-links a:hover,
 .nav-search-link:hover {
   z-index: 1;
@@ -91,10 +78,10 @@ kbd {
 }
 
 .site-footer {
+  margin-top: 10px;
   padding: 0 48px;
   background-color: #ffffff;
   border-top: 1px solid #0a0a0a;
-  margin-top: 10px;
 }
 
 .footer-inner {
@@ -179,7 +166,7 @@ kbd {
   z-index: 60;
   width: 300px;
   padding: 20px;
-  border: 1.5px solid #0a0a0a;
+  border: 1px solid #0a0a0a;
   background: #ffffff;
   animation: popup-in 0.2s ease;
 }
@@ -238,7 +225,7 @@ kbd {
 .logout-btn {
   width: 100%;
   height: 44px;
-  border: 1.5px solid #0a0a0a;
+  border: 1px solid #0a0a0a;
   background: #ffffff;
   font: inherit;
   font-size: 12px;
@@ -262,13 +249,13 @@ kbd {
 }
 
 .footer-links a {
+  padding: 10px 20px;
+  border: 1px solid transparent;
   font-size: 15px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   text-decoration: none;
   color: #5f6368;
-  padding: 10px 20px;
-  border: 1px solid transparent;
   transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
 
@@ -281,6 +268,49 @@ kbd {
   color: #0a0a0a;
   border-color: #16a34a;
   background-color: #f3fbf6;
+}
+
+/* Home Search Keyboard Shortcut */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  margin-right: 6px;
+  padding: 0 7px;
+  border: 1px solid #d9dbe0;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f5f6 100%);
+  box-shadow: 0 1px 0 #c8cbd0;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+  color: #5f6368;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+/* Keyboard shortcut inside the search field */
+.sr-field kbd {
+  flex: none;
+  margin-left: 8px;
+  margin-right: 0;
+  border-color: #d9dbe0;
+  background: #f7f7f8;
+  box-shadow: 0 1px 0 #d9dbe0;
+  color: #5f6368;
+}
+
+.sr-field:hover kbd,
+.sr-field:focus-within kbd {
+  border-color: #dc2626;
+  box-shadow: 0 1px 0 rgba(220, 38, 38, 0.18);
+  color: #0a0a0a;
 }
 
 .nav-links a:focus-visible,
@@ -297,6 +327,7 @@ kbd {
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -321,7 +352,7 @@ kbd {
     padding-left: 16px;
     padding-right: 16px;
   }
-  
+
   .sr-field kbd {
     display: none;
   }
@@ -369,5 +400,9 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .user-popup {
     animation: none;
+  }
+
+  kbd {
+    transition: none;
   }
 }
