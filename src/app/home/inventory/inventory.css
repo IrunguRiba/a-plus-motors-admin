@@ -1,15 +1,34 @@
 :host {
   display: block;
+  --ink: #000000;
+  --ink-soft: #000000;        /* all fonts black */
+  --muted: #000000;           /* all fonts black */
+  --line: #e4d6d8;
+  --line-soft: #eee3e5;
+  --surface: #f9f5f6;
+  --surface-alt: #f1e8ea;
+  --accent: #0a2647;
+  --accent-dark: #061a33;
+  --green: #112d4e;
+  --green-soft: #e6f4ea;
+  --amber: #b45309;
+  --amber-soft: #fdf0e1;
+  --red: #c62828;
+  --down: #ff0000;            /* down margin */
+  --pct: #36415a;             /* percentage colour */
+  --on-accent: #f9f5f6;
   font-family: var(--font-main, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  color: var(--ink);
 }
 
 .inventory-container {
   display: flex;
   flex-direction: column;
   width: 100%;
-
+  color: var(--ink);
 }
 
+/* ---------- sub nav tabs ---------- */
 .sub-nav-tabs {
   position: sticky;
   top: 0;
@@ -20,9 +39,9 @@
   height: 64px;
   box-sizing: border-box;
   padding: 10px 48px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #0a0a0a;
- gap: 10px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--ink);
+  gap: 10px;
 }
 
 .sub-nav-tabs a {
@@ -33,7 +52,7 @@
   justify-content: center;
   margin-left: -1px;
   padding: 0 20px;
-  border: 1px solid #d9dbe0;
+  border: 1px solid var(--line);
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -41,7 +60,7 @@
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
-  color: #0a0a0a;
+  color: var(--ink);
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
@@ -51,24 +70,37 @@
 
 .sub-nav-tabs a:hover {
   z-index: 1;
-  border-color: #8a8d93;
+  border-color: var(--ink);
 }
 
 .sub-nav-tabs a.active,
 .sub-nav-tabs a.active:hover {
   z-index: 2;
-  border-color: #16a34a;
-  background-color: #f3fbf6;
+  border-color: var(--green);
+  background-color: var(--green-soft);
+  color: var(--ink);
 }
 
 .sub-nav-tabs a:focus-visible {
   z-index: 3;
-  outline: 2px solid #1a4fd8;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .inventory-viewport {
   width: 100%;
+}
+
+/* ---------- percentage helper ---------- */
+.pct {
+  color: var(--pct);          /* #36415A */
+  font-weight: 600;
+}
+
+/* ---------- down delta helper ---------- */
+.down {
+  font-weight: 700;
+  color: var(--down);         /* #FF0000 */
 }
 
 @media (max-width: 1000px) {
