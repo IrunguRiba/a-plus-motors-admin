@@ -2,7 +2,7 @@
   --ink: #202734;
   --muted: #5f6368;
   --line: #d9dbe0;
-  --blue: #1a4fd8;
+  --blue: #061a33;
   --tint: #edf1fe;
   --soft: #f7f7f8;
   font-family: var(--font-main, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
@@ -10,7 +10,6 @@
   font-weight: 300;
 }
 
-/* ---------- Overlay shell ---------- */
 
 .search-container {
   position: fixed;
@@ -94,8 +93,7 @@
 }
 
 .sr-field:focus-within {
-  border-color: #010736;
-  box-shadow: 0 0 0 3px rgba(1, 7, 54, 0.15);
+  border-color: #100da1;
 }
 
 .sr-field svg {
@@ -162,8 +160,7 @@
 }
 
 .sr-close:hover {
-  border-color: #ff0000;
-  box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.15);
+  border-color: #740808;
 }
 
 /* ---------- Keyboard hints ---------- */
@@ -248,7 +245,8 @@ kbd {
 }
 
 .sr-row.active {
-  border-color: #2a7c13;
+  border-color: var(--blue);
+  color: #000000;
 }
 
 .sr-text {
