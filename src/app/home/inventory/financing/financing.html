@@ -1,0 +1,169 @@
+<!-- Reusable car outlines -->
+<ng-template #car>
+    <svg viewBox="0 0 53 22" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+      <path d="M5 15H3.500v-3c0-1 .7-1.800 1.700-2L12 9l4.500-4.300c.4-.4 1-.7 1.600-.7h12.800c.6 0 1.200.3 1.600.7L36.500 9l11.300 1c1 .2 1.700 1 1.700 2v3H48"/>
+      <circle cx="15" cy="15.500" r="3.500"/><circle cx="40" cy="15.500" r="3.500"/><path d="M18.500 15.500h18"/>
+    </svg>
+  </ng-template>
+  <ng-template #pickup>
+    <svg viewBox="0 0 53 22" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+      <path d="M4 15H3v-3.500c0-.8.500-1.400 1.300-1.600L11 8.500l3.500-3.800c.3-.4.8-.6 1.300-.6H25c.5 0 1 .2 1.300.6L29 8.500h20c.8 0 1.300.6 1.300 1.400V15H48.500"/>
+      <circle cx="14" cy="15.500" r="3.500"/><circle cx="40" cy="15.500" r="3.500"/><path d="M17.500 15.500h19"/>
+    </svg>
+  </ng-template>
+  
+  <section class="fin">
+  
+    <!-- ===== STATS ===== -->
+    <div class="stats">
+      @for (s of stats; track s.label) {
+        <article class="stat" [style.--i]="$index">
+          <span class="stat-label">{{ s.label }}</span>
+          <strong class="stat-value">{{ s.value }}</strong>
+          <span class="stat-sub">{{ s.sub }}</span>
+        </article>
+      }
+    </div>
+  
+    <!-- ===== TOOLBAR ===== -->
+    <div class="toolbar" style="--i:4">
+      <label class="search">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.1" aria-hidden="true">
+          <circle cx="7" cy="7" r="5"/><path d="M11 11l3.500 3.500"/>
+        </svg>
+        <input type="search" placeholder="Search financed cars by name or stock no...."
+               [value]="query()" (input)="query.set(val($event))" aria-label="Search financed cars">
+      </label>
+  
+      <label class="pick">
+        <span>{{ bank() === 'all' ? 'ALL BANKS' : bank().toUpperCase() }} ▾</span>
+        <select (change)="bank.set(val($event))" aria-label="Filter by bank">
+          <option value="all">All banks</option>
+          @for (b of banks; track b) {
+            <option [value]="b">{{ b }}</option>
+          }
+        </select>
+      </label>
+  
+      <button type="button" class="btn btn--primary" (click)="addRequested.emit()">+ ADD CAR TO FINANCING</button>
+    </div>
+  
+    <!-- ===== BULK BAR ===== -->
+    @if (selectedCount() > 0) {
+      <div class="bulk" role="toolbar" aria-label="Bulk actions">
+        <strong class="bulk-count">{{ selectedCount() }} selected</strong>
+  
+        <div class="menu-wrap">
+          <button type="button" class="mini" (click)="togglePartnerMenu($event)">CHANGE PARTNER</button>
+          @if (partnerMenu()) {
+            <div class="menu" (click)="$event.stopPropagation()">
+              @for (b of banks; track b) {
+                <button type="button" (click)="changePartner(b)">
+                  <i class="dot" [style.background]="color(b)"></i>{{ b }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+  
+        <button type="button" class="mini" (click)="editTerms.emit([...selected()])">EDIT RATE / DEPOSIT</button>
+        <button type="button" class="mini" (click)="bulkPause()">{{ allSelectedPaused() ? 'RESUME' : 'PAUSE' }}</button>
+        <button type="button" class="mini mini--danger" (click)="bulkRemove()">REMOVE FROM FINANCING</button>
+  
+        <span class="bulk-hint">Switch = pause / resume on website</span>
+      </div>
+    }
+  
+    <!-- ===== TABLE ===== -->
+    <div class="scroll">
+      <div class="table" role="table" aria-label="Financed cars">
+        <div class="trow thead" role="row">
+          <span></span>
+          <span></span>
+          <span>CAR · STOCK NO.</span>
+          <span>PRICE</span>
+          <span>PARTNER</span>
+          <span>RATE</span>
+          <span>MIN. DEPOSIT</span>
+          <span>MAX TERM</span>
+          <span>APPLICATIONS</span>
+          <span>ACTIVE</span>
+          <span></span>
+        </div>
+  
+        @for (r of rows(); track r.stock) {
+          <div class="trow body" role="row" [class.trow--paused]="!r.active">
+            <input type="checkbox" class="cb" [checked]="selected().has(r.stock)"
+                   (change)="toggleSel(r.stock)" [attr.aria-label]="'Select ' + r.name">
+  
+            <span class="thumb">
+              @if (r.pickup) {
+                <ng-container *ngTemplateOutlet="pickup"></ng-container>
+              } @else {
+                <ng-container *ngTemplateOutlet="car"></ng-container>
+              }
+            </span>
+  
+            <div class="car-cell">
+              <strong>{{ r.name }}</strong>
+              <small>{{ r.stock }} · {{ fmt(r.km) }} km</small>
+            </div>
+  
+            <span class="price">KES {{ fmt(r.price) }}</span>
+  
+            <span class="bank"><i class="dot" [style.background]="color(r.bank)"></i>{{ r.bank }}</span>
+  
+            <span>from <b>{{ r.rate }}%</b></span>
+            <span>{{ r.deposit }}%</span>
+            <span>{{ r.term }} mo</span>
+  
+            <span>
+              @if (r.pending) {
+                <em class="badge badge--amber">{{ r.pending }} PENDING</em>
+              } @else {
+                <span class="dash">—</span>
+              }
+            </span>
+  
+            <button type="button" class="sw" role="switch"
+                    [class.sw--on]="r.active" [attr.aria-checked]="r.active"
+                    [attr.aria-label]="(r.active ? 'Pause ' : 'Resume ') + r.name"
+                    (click)="toggleActive(r.stock)"><span></span></button>
+  
+            <button type="button" class="remove" (click)="remove(r.stock)">REMOVE</button>
+          </div>
+        } @empty {
+          <p class="empty">No financed cars match your search.</p>
+        }
+      </div>
+    </div>
+  
+    <!-- ===== SUGGESTIONS ===== -->
+    @if (suggestions().length) {
+      <div class="suggest">
+        <div class="suggest-head">
+          <h2>✦ NOT YET ON FINANCING · {{ suggestions().length }} {{ suggestions().length === 1 ? 'CAR' : 'CARS' }} COULD SELL FASTER</h2>
+          <span>Cars priced above KES 1.5M convert better with finance</span>
+        </div>
+  
+        <div class="suggest-grid">
+          @for (c of suggestions(); track c.stock) {
+            <article class="s-card">
+              <span class="thumb thumb--lg">
+                @if (c.pickup) {
+                  <ng-container *ngTemplateOutlet="pickup"></ng-container>
+                } @else {
+                  <ng-container *ngTemplateOutlet="car"></ng-container>
+                }
+              </span>
+              <div class="car-cell">
+                <strong>{{ c.name }}</strong>
+                <small>{{ c.stock }} · KES {{ fmt(c.price) }}</small>
+              </div>
+              <button type="button" class="btn btn--primary btn--sm" (click)="enable(c)">ENABLE</button>
+            </article>
+          }
+        </div>
+      </div>
+    }
+  </section>

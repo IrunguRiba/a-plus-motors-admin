@@ -1,0 +1,109 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.home-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Top Navigation Bar */
+.top-nav-bar {
+  display: flex;
+  align-items: center;
+  /* Removed justify-content space-between since nav-links fills 100% width */
+  padding: 0 32px; /* Set to 0 if you want links to go literally edge-to-edge of the screen */
+  height: 72px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  text-align: center;
+}
+
+.nav-links {
+  display: flex;
+  width: 80%; 
+  justify-content: space-between; 
+  align-items: center;
+}
+
+.nav-links a {
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  padding: 26px 0;
+  position: relative;
+  transition: color 0.15s ease;
+  text-align: center; /* Ensures text stays centered in its flex section */
+}
+
+.nav-links a:hover {
+  color: #111827;
+}
+
+.nav-links a.active {
+  color: #111827;
+}
+
+.nav-links a.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #2563eb;
+}
+
+/* User Profile Badge */
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.user-role {
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #111827;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Content Viewport */
+.content-viewport {
+  flex: 1;
+  padding: 32px;
+}

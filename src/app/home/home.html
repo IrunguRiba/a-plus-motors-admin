@@ -1,0 +1,27 @@
+<div class="home-layout">
+  
+    <!-- Top Global Navigation Bar -->
+    <header class="top-nav-bar">
+      <nav class="nav-links">
+           <!-- User Profile Badge -->
+      <div class="user-badge">
+        <div class="user-meta">
+          <span class="user-name">Joel Irungu</span>
+          <span class="user-role">ADMIN · MAIN YARD THIKA-ROAD</span>
+        </div>
+        <div class="user-avatar">JI</div>
+      </div>
+        <a routerLink="overview" routerLinkActive="active">OVERVIEW</a>
+        <a routerLink="inventory" routerLinkActive="active">INVENTORY</a>
+        <a routerLink="people" routerLinkActive="active">PEOPLE</a>
+        <a routerLink="search" routerLinkActive="active">SEARCH</a>
+      </nav>
+      
+   
+    </header>
+  
+    <!-- Dynamic Content Outlet (Renders Overview, Inventory children, People, Search, etc.) -->
+    <main class="content-viewport">
+      <router-outlet />
+    </main>
+  </div>

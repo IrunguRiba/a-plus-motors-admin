@@ -1,0 +1,255 @@
+<!-- Reusable car outlines -->
+<ng-template #car>
+    <svg viewBox="0 0 53 22" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+      <path d="M5 15H3.500v-3c0-1 .7-1.800 1.700-2L12 9l4.500-4.300c.4-.4 1-.7 1.600-.7h12.800c.6 0 1.200.3 1.600.7L36.500 9l11.300 1c1 .2 1.700 1 1.700 2v3H48"/>
+      <circle cx="15" cy="15.500" r="3.500"/><circle cx="40" cy="15.500" r="3.500"/><path d="M18.500 15.500h18"/>
+    </svg>
+  </ng-template>
+  <ng-template #pickup>
+    <svg viewBox="0 0 53 22" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+      <path d="M4 15H3v-3.500c0-.8.500-1.400 1.300-1.600L11 8.500l3.500-3.800c.3-.4.8-.6 1.300-.6H25c.5 0 1 .2 1.300.6L29 8.500h20c.8 0 1.300.6 1.300 1.400V15H48.500"/>
+      <circle cx="14" cy="15.500" r="3.500"/><circle cx="40" cy="15.500" r="3.500"/><path d="M17.500 15.500h19"/>
+    </svg>
+  </ng-template>
+  
+  <section class="rec">
+  
+    <!-- ================= MAIN ================= -->
+    <div class="main">
+  
+      <!-- search + filters -->
+      <div class="top" style="--i:1">
+        <label class="search">
+          <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.1" aria-hidden="true">
+            <circle cx="7" cy="7" r="5"/><path d="M11 11l3.500 3.500"/>
+          </svg>
+          <input #search type="search" placeholder="Search by make, model, stock no., plate or VIN…"
+                 [value]="query()" (input)="query.set(val($event))" aria-label="Search cars">
+          <kbd>/</kbd>
+        </label>
+  
+        <div class="menu-wrap">
+          <button type="button" class="btn btn--ghost btn--filters" [attr.aria-expanded]="filtersOpen()"
+                  (click)="toggleFilters($event)">FILTERS ▾</button>
+          @if (filtersOpen()) {
+            <div class="pop" (click)="$event.stopPropagation()">
+              <label class="pop-field">
+                <span>Min. margin</span>
+                <select (change)="minMargin.set(+val($event))">
+                  @for (m of marginOptions; track m) {
+                    <option [value]="m" [selected]="m === minMargin()">{{ m ? m + '%+' : 'Any' }}</option>
+                  }
+                </select>
+              </label>
+              <label class="pop-field">
+                <span>Days on lot</span>
+                <select (change)="minLot.set(+val($event))">
+                  @for (d of lotOptions; track d) {
+                    <option [value]="d" [selected]="d === minLot()">{{ d ? d + ' d+' : 'Any' }}</option>
+                  }
+                </select>
+              </label>
+              <button type="button" class="link" (click)="resetFilters()">Reset</button>
+            </div>
+          }
+        </div>
+      </div>
+  
+      <!-- chips -->
+      <div class="fchips" style="--i:2" role="tablist" aria-label="Quick filters">
+        @for (f of filters; track f.key) {
+          <button type="button" class="fchip"
+                  [class.fchip--on]="filter() === f.key"
+                  [class.fchip--status]="f.group === 'status'"
+                  [attr.aria-pressed]="filter() === f.key"
+                  (click)="filter.set(f.key)">{{ chipLabel(f) }}</button>
+        }
+      </div>
+  
+      <!-- suggested -->
+      <div class="sec-row" style="--i:3">
+        <h2 class="sec">✦ SUGGESTED TO FEATURE</h2>
+        <span class="note">Based on enquiries, stock age and margin</span>
+      </div>
+  
+      <div class="suggest" style="--i:3">
+        @for (s of suggested(); track s.stock) {
+          <article class="s-card">
+            <div class="hero">
+              <span class="tag" [class]="'tag tag--' + s.tone">{{ s.tag }}</span>
+              @if (s.car.body === 'Pickup') {
+                <ng-container *ngTemplateOutlet="pickup"></ng-container>
+              } @else {
+                <ng-container *ngTemplateOutlet="car"></ng-container>
+              }
+            </div>
+            <div class="s-body">
+              <strong>{{ s.car.name.replace(' 2021', '').replace(' 2020', '').replace(' 2019', '').replace(' 2018', '') }}</strong>
+              <small>{{ s.stock }} · {{ s.note }}</small>
+              <span class="s-price">KES {{ fmt(s.car.price) }}</span>
+              <button type="button" class="btn btn--primary btn--block" (click)="feature(s.stock)">★ FEATURE</button>
+            </div>
+          </article>
+        }
+      </div>
+  
+      <!-- all cars -->
+      <div class="sec-row sec-row--all" style="--i:4">
+        <h2 class="sec">ALL CARS</h2>
+        <label class="sort">
+          <span>Sort: <b>{{ sortLabel() }}</b> ▾</span>
+          <select (change)="sort.set(val($event))" aria-label="Sort cars">
+            @for (o of sortOptions; track o.key) {
+              <option [value]="o.key" [selected]="o.key === sort()">{{ o.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+  
+      @if (selectedCount() > 0) {
+        <div class="bulk" role="toolbar" aria-label="Bulk actions">
+          <strong class="bulk-count">{{ selectedCount() }} selected</strong>
+          <button type="button" class="mini mini--primary" (click)="bulkFeature()">★ FEATURE</button>
+          <button type="button" class="mini" (click)="bulkUnfeature()">UNFEATURE</button>
+          <button type="button" class="mini" (click)="markReserved()">MARK RESERVED</button>
+          <button type="button" class="mini" (click)="exportCsv()">EXPORT CSV</button>
+          <button type="button" class="bulk-clear" (click)="selected.set(emptySet)">Clear selection</button>
+        </div>
+      }
+  
+      <div class="scroll" style="--i:5">
+        <div class="table" role="table" aria-label="All cars">
+          <div class="trow thead" role="row">
+            <span></span><span></span>
+            <span>CAR · STOCK NO.</span>
+            <span>PRICE</span>
+            <span>MARGIN</span>
+            <span>ENQ.</span>
+            <span>ON LOT</span>
+            <span>STATUS</span>
+            <span>FEATURED</span>
+            <span></span>
+          </div>
+  
+          @for (c of rows(); track c.stock) {
+            <div class="trow body" role="row">
+              <input type="checkbox" class="cb" [checked]="selected().has(c.stock)"
+                     (change)="toggleSel(c.stock)" [attr.aria-label]="'Select ' + c.name">
+  
+              <span class="thumb">
+                @if (c.body === 'Pickup') {
+                  <ng-container *ngTemplateOutlet="pickup"></ng-container>
+                } @else {
+                  <ng-container *ngTemplateOutlet="car"></ng-container>
+                }
+              </span>
+  
+              <div class="car-cell">
+                <strong>{{ c.name }}</strong>
+                <small>{{ c.stock }} · {{ fmt(c.km) }} km</small>
+              </div>
+  
+              <span class="price">KES {{ fmt(c.price) }}</span>
+  
+              <span><em class="mbadge" [class.mbadge--low]="c.margin < 10">{{ c.margin.toFixed(1) }}%</em></span>
+  
+              <span>{{ c.enq }}</span>
+              <span class="muted">{{ c.onLot }} d</span>
+  
+              <span>
+                <em class="status" [class.status--reserved]="c.status === 'Reserved'">{{ c.status.toUpperCase() }}</em>
+              </span>
+  
+              <button type="button" class="star" [class.star--on]="isFeatured(c.stock)"
+                      [attr.aria-pressed]="isFeatured(c.stock)"
+                      [attr.aria-label]="(isFeatured(c.stock) ? 'Unfeature ' : 'Feature ') + c.name"
+                      (click)="toggleFeature(c.stock)">★</button>
+  
+              <div class="row-menu">
+                <button type="button" class="dots" aria-label="More actions" (click)="toggleRowMenu(c.stock, $event)">···</button>
+                @if (menuFor() === c.stock) {
+                  <div class="pop pop--row" (click)="$event.stopPropagation()">
+                    <button type="button" (click)="toggleReserved(c.stock)">
+                      {{ c.status === 'Reserved' ? 'Mark in stock' : 'Mark reserved' }}
+                    </button>
+                    <button type="button" (click)="editCar.emit(c.stock); menuFor.set(null)">Edit car</button>
+                  </div>
+                }
+              </div>
+            </div>
+          } @empty {
+            <p class="empty">No cars match these filters.</p>
+          }
+        </div>
+      </div>
+  
+      <footer class="foot">
+        <span>Showing {{ rows().length ? 1 : 0 }}–{{ rows().length }} of {{ total }}</span>
+        <nav class="pager" aria-label="Pagination">
+          <button type="button" aria-label="Previous page" [disabled]="page() === 1" (click)="page.set(page() - 1)">‹</button>
+          @for (p of pages; track $index) {
+            @if (p === '…') {
+              <button type="button" disabled>…</button>
+            } @else {
+              <button type="button" [class.on]="page() === p" [attr.aria-current]="page() === p ? 'page' : null"
+                      (click)="page.set(+p)">{{ p }}</button>
+            }
+          }
+          <button type="button" aria-label="Next page" [disabled]="page() === 6" (click)="page.set(page() + 1)">›</button>
+        </nav>
+      </footer>
+    </div>
+  
+    <!-- ================= FEATURED PANEL ================= -->
+    <aside class="feat" style="--i:2">
+      <div class="feat-head">
+        <h2>FEATURED ON WEBSITE</h2>
+        <span class="slots">{{ featuredIds().length }} / {{ maxSlots }} SLOTS</span>
+      </div>
+      <p class="feat-sub">Cars shown first on the public homepage. Drag to reorder.</p>
+      @if (notice()) { <p class="notice" role="alert">{{ notice() }}</p> }
+  
+      <ol class="slot-list">
+        @for (s of slotList(); track $index) {
+          @if (s) {
+            <li class="slot" draggable="true"
+                [class.slot--drag]="dragFrom() === $index"
+                (dragstart)="dragFrom.set($index)"
+                (dragend)="dragFrom.set(null)"
+                (dragover)="$event.preventDefault()"
+                (drop)="drop($index)">
+              <span class="grip" aria-hidden="true">⋮⋮</span>
+              <span class="rank">{{ $index + 1 }}</span>
+              <span class="thumb">
+                @if (s.body === 'Pickup') {
+                  <ng-container *ngTemplateOutlet="pickup"></ng-container>
+                } @else {
+                  <ng-container *ngTemplateOutlet="car"></ng-container>
+                }
+              </span>
+              <div class="car-cell">
+                <strong>{{ s.name.replace(' 2021', '').replace(' 2020', '').replace(' 2019', '').replace(' 2018', '') }}</strong>
+                <small>{{ s.stock }} · KES {{ fmt(s.price) }}</small>
+              </div>
+              <button type="button" class="x" [attr.aria-label]="'Remove ' + s.name" (click)="unfeature(s.stock)">×</button>
+            </li>
+          } @else {
+            <li class="slot slot--empty">+ Empty slot {{ $index + 1 }}{{ $index === firstEmpty() ? ' · pick a car from the list' : '' }}</li>
+          }
+        }
+      </ol>
+  
+      <h3 class="stat-title">LAST 7 DAYS · FEATURED CARS</h3>
+      <div class="fstats">
+        @for (s of featStats; track s.label) {
+          <div><strong>{{ s.value }}</strong><span>{{ s.label }}</span></div>
+        }
+      </div>
+  
+      <div class="feat-foot">
+        <p class="edited">Last edited by <b>Joel Irungu</b> · {{ lastEdited() }} · <button type="button" class="link" (click)="historyRequested.emit()">View history</button></p>
+        <button type="button" class="btn btn--ghost btn--wide" (click)="previewRequested.emit(featuredIds())">PREVIEW ON WEBSITE</button>
+        <button type="button" class="btn btn--primary btn--wide btn--tall" (click)="publish()">PUBLISH CHANGES</button>
+      </div>
+    </aside>
+  </section>
