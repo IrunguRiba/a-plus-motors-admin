@@ -121,13 +121,13 @@ button { cursor: pointer; }
   font-weight: 500;
   letter-spacing: .1em;
   color: var(--ink);
-  background: var(--surface);
+ 
   border: 1px solid var(--ink);
   border-radius: 4px;
   cursor: pointer;
   transition: background .2s var(--ease), color .2s var(--ease);
 }
-.pick:hover { background: var(--ink); color: var(--on-accent); }
+
 .pick select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
 .pick:focus-within { outline: 1px solid var(--blue); outline-offset: 2px; }
 
