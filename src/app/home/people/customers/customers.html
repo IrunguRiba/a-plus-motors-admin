@@ -1,1 +1,219 @@
-<p>customers works!</p>
+<div class="customer-container">
+    <header class="cu-head">
+      <div>
+        <h1 class="cu-title">Customers</h1>
+        <p class="cu-lede">Walk-ins, WhatsApp chats and social leads in one record, so you see the whole journey to a sale.</p>
+      </div>
+      <div class="cu-actions">
+        <button type="button" class="cu-btn cu-btn-outline" (click)="exportCsv()">Export CSV</button>
+        <button type="button" class="cu-btn cu-btn-primary" (click)="focusQuickAdd()">+ Add walk-in</button>
+      </div>
+    </header>
+  
+    <div class="cu-stats">
+      @for (s of stats; track s.label) {
+        <div class="cu-stat" [class.hl]="s.highlight">
+          <span class="cu-stat-label">{{ s.label }}</span>
+          <strong class="cu-stat-value">{{ s.value }}</strong>
+          <span class="cu-stat-note" [class.up]="s.up">@if (s.up) {▲ }{{ s.note }}</span>
+        </div>
+      }
+    </div>
+  
+    <div class="cu-layout">
+      <div class="cu-main">
+        <div class="cu-search-row">
+          <label class="cu-search">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="text" placeholder="Search by name, phone or car..." [value]="query()" (input)="onSearch($event)" />
+          </label>
+          <button type="button" class="cu-filters" [class.open]="filtersOpen()" [attr.aria-expanded]="filtersOpen()" (click)="toggleFilters()">
+            Filters@if (activeFilterCount()) { · {{ activeFilterCount() }} } <span class="cu-caret"></span>
+          </button>
+        </div>
+  
+        @if (filtersOpen()) {
+          <div class="cu-filter-panel">
+            <label class="cu-field">
+              <span>Stage</span>
+              <select (change)="setStageFilter($event)">
+                <option value="all" [selected]="stageFilter() === 'all'">All stages</option>
+                @for (s of stages; track s) {
+                  <option [value]="s" [selected]="stageFilter() === s">{{ s }}</option>
+                }
+              </select>
+            </label>
+            <label class="cu-field">
+              <span>Salesperson</span>
+              <select (change)="setSalespersonFilter($event)">
+                @for (p of salespeople(); track p) {
+                  <option [value]="p" [selected]="salespersonFilter() === p">{{ p === 'all' ? 'Everyone' : p }}</option>
+                }
+              </select>
+            </label>
+            <button type="button" class="cu-link" (click)="resetFilters()">Reset all</button>
+          </div>
+        }
+  
+        <div class="cu-chips">
+          @for (chip of chips; track chip) {
+            <button type="button" class="cu-chip" [class.active]="channel() === chip" (click)="setChannel(chip)">{{ chip }} · {{ counts()[chip] }}</button>
+          }
+        </div>
+  
+        <section class="cu-card">
+          <div class="cu-scroll">
+            <table class="cu-table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>First saw us on</th>
+                  <th>Interested in</th>
+                  <th>Budget (KES)</th>
+                  <th>Stage</th>
+                  <th>Last touch</th>
+                  <th>Salesperson</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of paged(); track c.id) {
+                  <tr tabindex="0" [class.selected]="c.id === selected().id" [attr.aria-selected]="c.id === selected().id" (click)="select(c.id)" (keydown.enter)="select(c.id)" (keydown.space)="select(c.id); $event.preventDefault()">
+                    <td>
+                      <div class="cu-person">
+                        <span class="cu-avatar">{{ initials(c.name) }}</span>
+                        <span class="cu-person-text">
+                          <strong>{{ c.name }}</strong>
+                          <small>{{ c.phone }}</small>
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="cu-source"><i [style.background]="color(c.source)"></i>{{ c.source }}</span>
+                    </td>
+                    <td class="cu-car">{{ c.car }}</td>
+                    <td>{{ c.budget }}</td>
+                    <td><span class="cu-stage" [attr.data-stage]="stageClass(c.stage)">{{ c.stage }}</span></td>
+                    <td class="cu-muted">{{ c.last }}</td>
+                    <td>{{ c.salesperson }}</td>
+                  </tr>
+                } @empty {
+                  <tr class="cu-empty"><td colspan="7">No customers match. <button type="button" class="cu-link" (click)="resetFilters()">Reset all</button></td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="cu-card-foot">
+            <span>{{ showingText() }}</span>
+            <div class="cu-pager">
+              <button type="button" aria-label="Previous page" [disabled]="page() === 1" (click)="goTo(page() - 1)">‹</button>
+              @for (p of pages(); track p) {
+                <button type="button" [class.active]="p === page()" (click)="goTo(p)">{{ p }}</button>
+              }
+              <button type="button" aria-label="Next page" [disabled]="page() === totalPages()" (click)="goTo(page() + 1)">›</button>
+            </div>
+          </div>
+        </section>
+  
+        <section class="cu-card cu-quick" #quickAdd>
+          <div class="cu-card-head">
+            <h2>Quick add walk-in</h2>
+            <span>Captures what social media cannot see. Takes under a minute.</span>
+          </div>
+          <div class="cu-form">
+            <label class="cu-input" [class.invalid]="nameError()">
+              <span class="cu-label">Full name</span>
+              <input #nameInput type="text" placeholder="e.g. Grace Njeri" [value]="formName()" (input)="onName($event)" />
+              @if (nameError()) {
+                <small>{{ nameError() }}</small>
+              }
+            </label>
+            <label class="cu-input" [class.invalid]="phoneError()">
+              <span class="cu-label">Phone</span>
+              <span class="cu-internal">Internal</span>
+              <input type="tel" inputmode="numeric" placeholder="07__ ___ ___" [value]="formPhone()" (input)="onPhone($event)" />
+              @if (phoneError()) {
+                <small>{{ phoneError() }}</small>
+              }
+            </label>
+            <label class="cu-input">
+              <span class="cu-label">Interested in</span>
+              <select (change)="onCar($event)">
+                @for (car of cars; track car) {
+                  <option [value]="car" [selected]="car === formCar()">{{ car }}</option>
+                }
+              </select>
+            </label>
+            <label class="cu-input">
+              <span class="cu-label">Budget (KES)</span>
+              <input type="text" inputmode="numeric" placeholder="e.g. 4,000,000" [value]="formBudget()" (input)="onBudget($event)" />
+            </label>
+          </div>
+          <div class="cu-heard">
+            <span class="cu-label">How did they hear about us?</span>
+            <div class="cu-chips">
+              @for (h of heardOptions; track h) {
+                <button type="button" class="cu-chip" [class.picked]="formHeard() === h" (click)="setHeard(h)">{{ h }}</button>
+              }
+            </div>
+          </div>
+          <div class="cu-form-actions">
+            <button type="button" class="cu-btn cu-btn-outline" (click)="clearForm()">Clear</button>
+            <button type="button" class="cu-btn cu-btn-primary" (click)="saveWalkIn()">Save walk-in</button>
+          </div>
+        </section>
+      </div>
+  
+      <aside class="cu-panel">
+        <div class="cu-panel-head">
+          <span class="cu-avatar cu-avatar-lg">{{ initials(selected().name) }}</span>
+          <div>
+            <h2>{{ selected().name }}</h2>
+            <p>{{ selected().headline }}</p>
+          </div>
+        </div>
+  
+        <dl class="cu-facts">
+          <div><dt>Phone · Internal</dt><dd>{{ selected().phone }}</dd></div>
+          <div><dt>Location</dt><dd>{{ selected().location }}</dd></div>
+          <div><dt>Age band</dt><dd>{{ selected().age }}</dd></div>
+          <div><dt>Budget (KES)</dt><dd>{{ selected().budget }}</dd></div>
+          <div><dt>Interested in</dt><dd>{{ selected().car }}</dd></div>
+          <div><dt>Financing</dt><dd>{{ selected().financing }}</dd></div>
+        </dl>
+  
+        <h3 class="cu-sub">Journey · Social and showroom</h3>
+        <ul class="cu-journey">
+          @for (e of selected().journey; track $index) {
+            <li>
+              <span class="cu-when">{{ e.when }}</span>
+              <div>
+                <strong><i [style.background]="e.current ? '#1a4fd8' : color(e.channel)"></i>{{ e.channel }}</strong>
+                <p>{{ e.text }}</p>
+              </div>
+            </li>
+          }
+        </ul>
+  
+        <div class="cu-action">
+          <span class="cu-action-label">✦ Next best action</span>
+          <strong>{{ selected().action.title }}</strong>
+          <p>{{ selected().action.body }}</p>
+        </div>
+  
+        <textarea class="cu-notes" rows="3" placeholder="Internal notes (staff only): preferences, objections, trade-in..." [value]="note()" (input)="onNote($event)"></textarea>
+  
+        <div class="cu-panel-actions">
+          <button type="button" class="cu-btn cu-btn-outline" [disabled]="!note().trim()" (click)="logNote()">Log note</button>
+          <button type="button" class="cu-btn cu-btn-primary" (click)="sendFinancingOffer()">Send financing offer</button>
+        </div>
+      </aside>
+    </div>
+  
+    <footer class="cu-brand">
+    
+    </footer>
+  
+    @if (toast(); as message) {
+      <div class="cu-toast" role="status" aria-live="polite">{{ message }}</div>
+    }
+  </div>

@@ -32,7 +32,6 @@ export const routes: Routes = [
           { path: 'customers', component: Customers }
         ]
       },
-      { path: 'search', component: Search },
       {
         path: 'inventory',
         component: Inventory,

@@ -1,3 +1,192 @@
 <div class="review-planner-container">
-    
-</div>
+    <div class="rp-main">
+      <header class="rp-head">
+        <h1 class="rp-title">Review planner</h1>
+        <p class="rp-lede">Which car to feature, on which app, how long, and for whom. Built from engagement, search, stock age, margin and showroom walk-ins.</p>
+      </header>
+  
+      <div class="rp-search-row">
+        <label class="rp-search">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="text" placeholder="Search by make, model or stock no..." [value]="query()" (input)="onSearch($event)" />
+        </label>
+        <button type="button" class="rp-filters" [class.open]="filtersOpen()" [attr.aria-expanded]="filtersOpen()" (click)="toggleFilters()">Filters@if (activeFilterCount()) { · {{ activeFilterCount() }} } <span class="rp-caret"></span></button>
+      </div>
+  
+      @if (filtersOpen()) {
+        <div class="rp-filter-panel">
+          <label class="rp-field">
+            <span>Best app</span>
+            <select (change)="setAppFilter($event)" [value]="appFilter()">
+              @for (app of appOptions; track app) {
+                <option [value]="app" [selected]="app === appFilter()">{{ app === 'all' ? 'All apps' : app }}</option>
+              }
+            </select>
+          </label>
+          <label class="rp-field">
+            <span>Minimum score · {{ minScore() }}</span>
+            <input type="range" min="0" max="100" step="5" [value]="minScore()" (input)="setMinScore($event)" />
+          </label>
+          <button type="button" class="rp-reset" (click)="resetFilters()">Reset all</button>
+        </div>
+      }
+  
+      <div class="rp-chips">
+        @for (chip of chips; track chip.key) {
+          <button type="button" class="rp-chip" [class.active]="filter() === chip.key" (click)="setFilter(chip.key)">
+            {{ chip.label }}@if (chip.showCount) { · {{ counts()[chip.key] }} }
+          </button>
+        }
+      </div>
+  
+      <section class="rp-card">
+        <div class="rp-card-head">
+          <h2>Ranked by sales potential</h2>
+          <span>Score blends demand, stock age, margin and walk-in interest</span>
+        </div>
+        <div class="rp-table-scroll">
+          <table class="rp-table">
+            <thead>
+              <tr>
+                <th><button type="button" class="rp-sort" (click)="sortBy('name')">Car · Stock no. {{ arrow('name') }}</button></th>
+                <th><button type="button" class="rp-sort" (click)="sortBy('score')">Score {{ arrow('score') }}</button></th>
+                <th>Best app</th>
+                <th>Best length</th>
+                <th>Top audience</th>
+                <th><button type="button" class="rp-sort" (click)="sortBy('leads')">Est. leads {{ arrow('leads') }}</button></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (car of visibleCars(); track car.stock) {
+                <tr tabindex="0" [class.selected]="car.stock === selected().stock" [attr.aria-selected]="car.stock === selected().stock" (click)="select(car.stock)" (keydown.enter)="select(car.stock)" (keydown.space)="select(car.stock); $event.preventDefault()">
+                  <td>
+                    <div class="rp-car">
+                      <span class="rp-thumb">
+                        <svg viewBox="0 0 48 24" width="44" height="22" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 16h2l3-7h20l6 6h7v1h-3"/><path d="M9 9l-2 7M29 9l4 6"/><circle cx="14" cy="17" r="3"/><circle cx="34" cy="17" r="3"/></svg>
+                      </span>
+                      <span class="rp-car-text">
+                        <strong>{{ car.name }}</strong>
+                        <small>{{ car.stock }}</small>
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="rp-score">
+                      <span class="rp-score-track"><span class="rp-score-fill" [style.width.%]="car.score"></span></span>
+                      <b>{{ car.score }}</b>
+                    </div>
+                  </td>
+                  <td>{{ car.app }}</td>
+                  <td>{{ car.length }}</td>
+                  <td class="rp-audience">{{ car.audience }}</td>
+                  <td class="rp-leads">~{{ car.leads }}</td>
+                </tr>
+              } @empty {
+                <tr class="rp-empty"><td colspan="6">No cars match. <button type="button" class="rp-reset" (click)="resetFilters()">Reset all</button></td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="rp-card-foot">
+          <span>{{ showingText() }}</span>
+          <span>{{ selected().name.split(' ').slice(0, 2).join(' ') }} selected</span>
+        </div>
+      </section>
+  
+      <section class="rp-card">
+        <div class="rp-card-head">
+          <h2>What length works on your channels</h2>
+          <span>Average watch behaviour on A-Plus posts, last 90 days</span>
+        </div>
+        <div class="rp-table-scroll">
+          <table class="rp-table rp-channels">
+            <thead>
+              <tr>
+                <th>Platform · Format</th>
+                <th>Best length</th>
+                <th>Avg watched</th>
+                <th>Use it for</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of channels; track row.platform) {
+                <tr>
+                  <td><strong>{{ row.platform }}</strong></td>
+                  <td class="rp-blue">{{ row.length }}</td>
+                  <td>{{ row.watched }}</td>
+                  <td>{{ row.use }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+  
+      <footer class="rp-brand">
+        
+      </footer>
+    </div>
+  
+    <aside class="rp-panel">
+      <div class="rp-panel-top">
+        <span class="rp-panel-label">Review plan</span>
+        <span class="rp-badge">{{ selected().badge }}</span>
+      </div>
+      <h2 class="rp-panel-title">{{ selected().name }}</h2>
+      <p class="rp-panel-meta">{{ selected().stock }} · {{ selected().km }} · {{ selected().price }} · {{ selected().margin }}</p>
+  
+      <div class="rp-reco">
+        <span class="rp-reco-label">Recommended</span>
+        <strong>{{ selected().recTitle }}</strong>
+        <p>{{ selected().recBody }}</p>
+      </div>
+  
+      <h3 class="rp-sub">Who watches · Age</h3>
+      <ul class="rp-bars">
+        @for (age of ageLabels; track age; let i = $index) {
+          <li>
+            <span>{{ age }}</span>
+            <span class="rp-track"><span class="rp-fill" [class.soft]="selected().ages[i] < 20" [style.width.%]="bar(selected().ages[i], 50)"></span></span>
+            <b>{{ selected().ages[i] }}%</b>
+          </li>
+        }
+      </ul>
+  
+      <h3 class="rp-sub">Gender</h3>
+      <div class="rp-gender">
+        <span class="rp-men" [style.width.%]="selected().men">Men {{ selected().men }}%</span>
+        <span class="rp-women">Women {{ 100 - selected().men }}%</span>
+      </div>
+  
+      <h3 class="rp-sub">Top locations</h3>
+      <div class="rp-locations">
+        @for (loc of selected().locations; track loc) {
+          <span>{{ loc }}</span>
+        }
+      </div>
+  
+      <h3 class="rp-sub">Avg minutes watched by video length</h3>
+      <ul class="rp-bars rp-minutes">
+        @for (b of buckets; track b.label; let i = $index) {
+          <li [class.best]="i === selected().bestBucket">
+            <span>{{ b.label }}</span>
+            <span class="rp-track"><span class="rp-fill" [class.soft]="i !== selected().bestBucket" [style.width.%]="bar(b.value, maxBucket)"></span></span>
+            <b>{{ b.value }} m</b>
+          </li>
+        }
+      </ul>
+      <p class="rp-note">{{ selected().basis }}</p>
+  
+      <div class="rp-signal">
+        <span class="rp-signal-label">Showroom signal</span>
+        <p>{{ selected().signal }}</p>
+      </div>
+  
+      <button type="button" class="rp-btn rp-btn-primary" [class.done]="isScheduled()" (click)="toggleCalendar()">{{ isScheduled() ? 'On content calendar · Remove' : 'Add to content calendar' }}</button>
+      <button type="button" class="rp-btn rp-btn-outline" (click)="sendBrief()">Send brief to salesperson</button>
+    </aside>
+  
+    @if (toast(); as message) {
+      <div class="rp-toast" role="status" aria-live="polite">{{ message }}</div>
+    }
+  </div>

@@ -1,1 +1,87 @@
-<p>search works!</p>
+<div class="search-container" [class.open]="open()" role="dialog" aria-modal="true" aria-label="Search" [attr.aria-hidden]="!open()" [attr.inert]="open() ? null : ''">
+  <div class="sr-body">
+    <!-- Flex wrapper aligning Search Field on the Left & Close Button on the Right -->
+    <div class="sr-input-bar">
+      <label class="sr-field">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"/>
+          <path d="m20 20-3.5-3.5"/>
+        </svg>
+        <input #field type="text" autocomplete="off" placeholder="Search pages, cars, customers or help..." [value]="query()" (input)="onInput($event)" (keydown.enter)="openActive()" />
+        @if (searching()) {
+          <button type="button" class="sr-clear" (click)="clearQuery()">Clear</button>
+        } @else {
+          <kbd>Ctrl K</kbd>
+        }
+      </label>
+
+      <button type="button" class="sr-close" aria-label="Close search" (click)="close()">
+        <span>Close Search</span><kbd>Esc</kbd>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 5l14 14M19 5L5 19"/>
+        </svg>
+      </button>
+    </div>
+
+    @if (flat().length) {
+      <div class="sr-results" [class.single]="searching()">
+        <div class="sr-col">
+          @for (s of left(); track s.title) {
+            <section class="sr-section">
+              <h2>{{ s.title }}</h2>
+              @for (r of s.rows; track r.item.key) {
+                <button type="button" class="sr-row" [class.active]="r.index === active()" (click)="go(r.item)" (mouseenter)="setActive(r.index)">
+                  <span class="sr-text">
+                    <strong>{{ r.item.label }}</strong>
+                    <small>{{ r.item.hint }}</small>
+                  </span>
+                  <span class="sr-tag">{{ isCurrent(r.item) ? 'Current page' : tabLabel(r.item.tab) }}</span>
+                </button>
+              }
+            </section>
+          }
+        </div>
+        @if (!searching()) {
+          <div class="sr-col">
+            @for (s of right(); track s.title) {
+              <section class="sr-section">
+                <div class="sr-section-head">
+                  <h2>{{ s.title }}</h2>
+                  @if (s.clearable) {
+                    <button type="button" class="sr-link" (click)="clearRecent()">Clear</button>
+                  }
+                </div>
+                @for (r of s.rows; track r.item.key) {
+                  <button type="button" class="sr-row" [class.active]="r.index === active()" (click)="go(r.item)" (mouseenter)="setActive(r.index)">
+                    <span class="sr-text">
+                      <strong>{{ r.item.label }}</strong>
+                      <small>{{ r.item.hint }}</small>
+                    </span>
+                    <span class="sr-tag">{{ tabLabel(r.item.tab) }}</span>
+                  </button>
+                }
+              </section>
+            }
+            @if (!recent().length) {
+              <section class="sr-section">
+                <div class="sr-section-head"><h2>Recent actions</h2></div>
+                <p class="sr-empty-small">Nothing yet. Pages you open from search appear here.</p>
+              </section>
+            }
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="sr-empty">
+        <strong>No results for "{{ query() }}"</strong>
+        <p>Try a page name, a car, a customer or a word like "blog" or "walk-in".</p>
+      </div>
+    }
+  </div>
+
+  <div class="sr-foot">
+    <span><kbd>↑</kbd><kbd>↓</kbd> to move</span>
+    <span><kbd>Enter</kbd> to open</span>
+    <span><kbd>Esc</kbd> to close</span>
+  </div>
+</div>

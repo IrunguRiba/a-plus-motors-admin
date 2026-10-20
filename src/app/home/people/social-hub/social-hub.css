@@ -1,5 +1,6 @@
 /* ============ Tokens ============ */
 :host {
+  margin-top: 10px;
     display: block;
     width: 100%;
     --ink: #111111;
