@@ -1,353 +1,574 @@
-<section class="add-car">
+<section class="add-car" [formGroup]="form">
+  <!-- ============ MAIN FORM ============ -->
+  <form class="card main" novalidate>
+    <header class="card-head">
+      <div>
+        <h1>ADD NEW CAR</h1>
+        <p>
+          Create an inventory record. Fields marked <span class="tag">INTERNAL</span> are never
+          shown to customers.
+        </p>
+      </div>
+      <span class="badge badge--amber">{{ badgeText() }}</span>
+    </header>
 
-    <!-- ============ MAIN FORM ============ -->
-    <form class="card main" (submit)="$event.preventDefault()" novalidate>
-  
-      <header class="card-head">
-        <div>
-          <h1>ADD NEW CAR</h1>
-          <p>Create an inventory record. Fields marked <span class="tag">INTERNAL</span> are never shown to customers.</p>
-        </div>
-        <span class="badge badge--amber">DRAFT · AUTO-SAVED {{ savedAt() }}</span>
-      </header>
-  
-      <!-- 1 · VEHICLE -->
-      <section class="block" style="--i:1">
-        <h2 class="sec"><span class="num">1</span>VEHICLE</h2>
-  
-        <div class="row row--3">
-          <label class="field">
-            <span class="lbl">Make</span>
-            <select class="control select" (change)="onMake($event)">
-              @for (m of makeNames; track m) {
-                <option [value]="m" [selected]="m === make()">{{ m }}</option>
-              }
-            </select>
-          </label>
-  
-          <label class="field">
-            <span class="lbl">Model</span>
-            <select class="control select" (change)="model.set(val($event))">
-              @for (m of models(); track m) {
-                <option [value]="m" [selected]="m === model()">{{ m }}</option>
-              }
-            </select>
-          </label>
-  
-          <label class="field">
-            <span class="lbl">Year</span>
-            <select class="control select" (change)="year.set(+val($event))">
-              @for (y of years; track y) {
-                <option [value]="y" [selected]="y === year()">{{ y }}</option>
-              }
-            </select>
-          </label>
-        </div>
-  
-        <div class="row row--2">
-          <div class="field">
-            <span class="lbl">Body type</span>
-            <div class="pills" role="radiogroup" aria-label="Body type">
-              @for (b of bodyTypes; track b) {
-                <button type="button" class="pill" role="radio"
-                        [class.pill--on]="body() === b"
-                        [attr.aria-checked]="body() === b"
-                        (click)="body.set(b)">{{ b }}</button>
-              }
-            </div>
-          </div>
-  
-          <div class="field">
-            <span class="lbl">Colour</span>
-            <div class="swatches" role="radiogroup" aria-label="Colour">
-              @for (c of colours; track c.name) {
-                <button type="button" class="swatch" role="radio"
-                        [class.swatch--on]="colour() === c.name"
-                        [attr.aria-checked]="colour() === c.name"
-                        [attr.aria-label]="c.name"
-                        [title]="c.name"
-                        [style.background]="c.hex"
-                        (click)="colour.set(c.name)"></button>
-              }
-            </div>
-          </div>
-        </div>
-      </section>
-  
-      <!-- 2 · SPECIFICATIONS -->
-      <section class="block" style="--i:2">
-        <h2 class="sec"><span class="num">2</span>SPECIFICATIONS</h2>
-  
-        <div class="row row--3">
-          <label class="field">
-            <span class="lbl">Mileage (km)</span>
-            <input class="control" type="text" inputmode="numeric"
-                   [value]="fmt(mileage())" (input)="num(mileage, $event)">
-          </label>
-  
-          <label class="field">
-            <span class="lbl">Engine (cc)</span>
-            <input class="control" type="text" inputmode="numeric"
-                   [value]="fmt(engine())" (input)="num(engine, $event)">
-          </label>
-  
-          <div class="field">
-            <span class="lbl">Drive</span>
-            <div class="seg" role="radiogroup" aria-label="Drive">
-              @for (d of drives; track d) {
-                <button type="button" role="radio"
-                        [class.on]="drive() === d"
-                        [attr.aria-checked]="drive() === d"
-                        (click)="drive.set(d)">{{ d }}</button>
-              }
-            </div>
-          </div>
-        </div>
-  
-        <div class="row row--2">
-          <div class="field">
-            <span class="lbl">Transmission</span>
-            <div class="seg" role="radiogroup" aria-label="Transmission">
-              @for (t of transmissions; track t) {
-                <button type="button" role="radio"
-                        [class.on]="transmission() === t"
-                        [attr.aria-checked]="transmission() === t"
-                        (click)="transmission.set(t)">{{ t }}</button>
-              }
-            </div>
-          </div>
-  
-          <div class="field">
-            <span class="lbl">Fuel</span>
-            <div class="seg" role="radiogroup" aria-label="Fuel">
-              @for (f of fuels; track f) {
-                <button type="button" role="radio"
-                        [class.on]="fuel() === f"
-                        [attr.aria-checked]="fuel() === f"
-                        (click)="fuel.set(f)">{{ f }}</button>
-              }
-            </div>
-          </div>
-        </div>
-  
-        <div class="row row--vin">
-          <label class="field">
-            <span class="lbl">Chassis / VIN</span>
-            <input class="control control--vin" type="text" spellcheck="false" autocomplete="off"
-                   [value]="vin()" (input)="vin.set(val($event))">
-          </label>
-          <div class="field">
-            <span class="lbl lbl--ghost">&nbsp;</span>
-            <button type="button" class="btn btn--ghost btn--field" (click)="decodeVin()">DECODE VIN</button>
-          </div>
-        </div>
-      </section>
-  
-      <!-- 3 · ACQUISITION & PRICING -->
-      <section class="block" style="--i:3">
-        <h2 class="sec"><span class="num">3</span>ACQUISITION &amp; PRICING</h2>
-  
-        <div class="row row--3">
-          <label class="field">
-            <span class="lbl">Stock no.</span>
-            <input class="control" type="text" [value]="stockNo" disabled>
-          </label>
-  
-          <label class="field">
-            <span class="lbl">Source <span class="tag">INTERNAL</span></span>
-            <select class="control select" (change)="source.set(val($event))">
-              @for (s of sources; track s) {
-                <option [value]="s" [selected]="s === source()">{{ s }}</option>
-              }
-            </select>
-          </label>
-  
-          <label class="field">
-            <span class="lbl">Branch / Yard</span>
-            <select class="control select" (change)="branch.set(val($event))">
-              @for (b of branches; track b) {
-                <option [value]="b" [selected]="b === branch()">{{ b }}</option>
-              }
-            </select>
-          </label>
-        </div>
-  
-        <div class="row row--3">
-          <label class="field">
-            <span class="lbl">Purchase cost (KES) <span class="tag">INTERNAL</span></span>
-            <input class="control" type="text" inputmode="numeric"
-                   [value]="fmt(cost())" (input)="num(cost, $event)">
-          </label>
-  
-          <label class="field">
-            <span class="lbl">Selling price (KES)</span>
-            <input class="control" type="text" inputmode="numeric"
-                   [value]="fmt(price())" (input)="num(price, $event)">
-          </label>
-  
-          <div class="field">
-            <span class="lbl">Gross margin</span>
-            <div class="margin" [class.margin--neg]="margin() < 0" aria-live="polite">
-              KES {{ fmt(margin()) || '0' }} · {{ marginPct() }}%
-            </div>
-          </div>
-        </div>
-  
-        <div class="row row--opts">
-          <button type="button" class="opt" role="switch"
-                  [class.opt--on]="negotiable()"
-                  [attr.aria-checked]="negotiable()"
-                  (click)="negotiable.set(!negotiable())">
-            <span class="switch"></span>
-            <span class="opt-text"><strong>Price negotiable</strong></span>
-          </button>
-  
-          <button type="button" class="opt" role="switch"
-                  [class.opt--on]="financing()"
-                  [attr.aria-checked]="financing()"
-                  (click)="toggleFinancing()">
-            <span class="switch"></span>
-            <span class="opt-text">
-              <strong>Financing supported</strong>
-              <small>Adds this car to the Financing list · partner: {{ partner }}</small>
-            </span>
+    <!-- 1 · VEHICLE -->
+    <section class="block" style="--i: 1">
+      <h2 class="sec"><span class="num">1</span>VEHICLE</h2>
+
+      <div class="row row--3">
+        <label class="field">
+          <span class="lbl">Make</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="make"
+            autocomplete="off"
+            placeholder="e.g. Toyota"
+            [class.control--bad]="bad(f.make)"
+          />
+          @if (bad(f.make)) {
+            <span class="err">Enter the make</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="lbl">Model</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="model"
+            autocomplete="off"
+            placeholder="e.g. Harrier"
+            [class.control--bad]="bad(f.model)"
+          />
+          @if (bad(f.model)) {
+            <span class="err">Enter the model</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="lbl">Year</span>
+          <input
+            class="control"
+            type="text"
+            inputmode="numeric"
+            maxlength="4"
+            placeholder="e.g. 2021"
+            [class.control--bad]="bad(f.year)"
+            [value]="v().year || ''"
+            (input)="num(f.year, $event, false, 4)"
+          />
+          @if (bad(f.year)) {
+            <span class="err">Enter a valid year</span>
+          }
+        </label>
+      </div>
+
+      <div class="row row--2">
+        <label class="field">
+          <span class="lbl">Body type</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="body"
+            autocomplete="off"
+            placeholder="e.g. SUV, Sedan, Station wagon"
+          />
+        </label>
+
+        <label class="field">
+          <span class="lbl">Colour</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="colour"
+            autocomplete="off"
+            placeholder="e.g. Pearl White"
+          />
+        </label>
+      </div>
+    </section>
+
+    <!-- 2 · SPECIFICATIONS -->
+    <section class="block" style="--i: 2">
+      <h2 class="sec"><span class="num">2</span>SPECIFICATIONS</h2>
+
+      <div class="row row--vin">
+        <label class="field">
+          <span class="lbl">Chassis / VIN</span>
+          <input
+            class="control control--vin"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            formControlName="vin"
+            placeholder="Enter VIN to auto-fill details"
+            (input)="onVinInput()"
+          />
+        </label>
+        <div class="field">
+          <span class="lbl lbl--ghost">&nbsp;</span>
+          <button
+            type="button"
+            class="btn btn--ghost btn--field"
+            [class.btn--populate]="vinState() === 'populate'"
+            [disabled]="vinState() === 'decoding'"
+            (click)="onVinButton()"
+          >
+            {{ vinButtonLabel() }}
           </button>
         </div>
-      </section>
-  
-      <!-- 4 · FEATURES & INTERNAL NOTES -->
-      <section class="block" style="--i:4">
-        <h2 class="sec"><span class="num">4</span>FEATURES &amp; INTERNAL NOTES</h2>
-  
-        <div class="chips">
-          @for (f of features(); track f) {
-            <button type="button" class="chip"
-                    [class.chip--on]="selected().has(f)"
-                    [attr.aria-pressed]="selected().has(f)"
-                    (click)="toggleFeature(f)">{{ f }}</button>
-          }
-  
-          @if (adding()) {
-            <input #newFeature class="chip chip--input" type="text" placeholder="New feature"
-                   (keydown.enter)="addFeature(newFeature.value); $event.preventDefault()"
-                   (keydown.escape)="adding.set(false)"
-                   (blur)="addFeature(newFeature.value)" autofocus>
-          } @else {
-            <button type="button" class="chip chip--add" (click)="startAdd()">+ Add</button>
-          }
-        </div>
-  
-        <textarea class="control notes" rows="2"
-                  placeholder="Internal notes (staff only): seller details, repairs needed, reconditioning cost..."
-                  [value]="notes()" (input)="notes.set(val($event))"></textarea>
-      </section>
-    </form>
-  
-    <!-- ============ SIDE COLUMN ============ -->
-    <aside class="side">
-  
-      <!-- Photos -->
-      <div class="photos" style="--i:1">
-        <div class="cap">PHOTOS · {{ photos().length }} OF {{ maxPhotos }} · FIRST PHOTO IS THE COVER</div>
-  
-        <div class="drop" [class.drop--over]="dragging()"
-             (dragover)="onDragOver($event)" (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
-          <span class="plus">+</span>
-          <span>Drag &amp; drop photos or</span>
-          <button type="button" class="link" (click)="openPicker()">browse</button>
-          <input #picker type="file" accept="image/*" multiple hidden (change)="onPick($event)">
-        </div>
-  
-        <div class="thumbs">
-          @for (s of slots(); track $index) {
-            @if (s) {
-              <div class="thumb thumb--filled" [class.thumb--cover]="$index === 0">
-                @if (s.url) {
-                  <img [src]="s.url" alt="Car photo {{ $index + 1 }}">
-                } @else {
-                  <svg viewBox="0 0 40 16" width="40" height="16" fill="none" stroke="currentColor" stroke-width="0.9" aria-hidden="true">
-                    <path d="M3 11H2V9.5c0-1 .7-1.8 1.7-2L9 6.5l3-3c.4-.4 1-.6 1.5-.6h8c.6 0 1.1.2 1.5.6l3 3 5.500 1c1 .2 1.700 1 1.700 2V11h-1"/>
-                    <circle cx="11" cy="11.5" r="2.5"/><circle cx="29" cy="11.5" r="2.5"/><path d="M13.500 11h13"/>
-                  </svg>
-                }
-              </div>
-            } @else {
-              <button type="button" class="thumb thumb--empty" aria-label="Add photo" (click)="openPicker()">+</button>
+      </div>
+
+      @if (decodeMsg()) {
+        <span class="err" [class.err--ok]="vinState() === 'idle' && decoded() === null">{{
+          decodeMsg()
+        }}</span>
+      }
+
+      <div class="row row--3">
+        <label class="field">
+          <span class="lbl">Mileage (km)</span>
+          <input
+            class="control"
+            type="text"
+            inputmode="numeric"
+            [value]="fmt(v().mileage)"
+            (input)="num(f.mileage, $event)"
+          />
+        </label>
+
+        <label class="field">
+          <span class="lbl">Engine (cc)</span>
+          <input
+            class="control"
+            type="text"
+            inputmode="numeric"
+            [value]="fmt(v().engine)"
+            (input)="num(f.engine, $event)"
+          />
+        </label>
+
+        <div class="field">
+          <span class="lbl">Drive</span>
+          <div class="seg" role="radiogroup" aria-label="Drive">
+            @for (d of drives; track d) {
+              <button
+                type="button"
+                role="radio"
+                [class.on]="v().drive === d"
+                [attr.aria-checked]="v().drive === d"
+                (click)="f.drive.setValue(d)"
+              >
+                {{ d }}
+              </button>
             }
-          }
+          </div>
         </div>
       </div>
-  
-      <!-- Documents -->
-      <div class="panel" style="--i:2">
-        <div class="panel-head">
-          <h3>DOCUMENTS</h3>
-          <span class="badge badge--amber">{{ uploadedCount() }} OF {{ docs().length }} UPLOADED</span>
+
+      <div class="row row--2">
+        <div class="field">
+          <span class="lbl">Transmission</span>
+          <div class="seg" role="radiogroup" aria-label="Transmission">
+            @for (t of transmissions; track t) {
+              <button
+                type="button"
+                role="radio"
+                [class.on]="v().transmission === t"
+                [attr.aria-checked]="v().transmission === t"
+                (click)="f.transmission.setValue(t)"
+              >
+                {{ t }}
+              </button>
+            }
+          </div>
         </div>
-  
-        <ul class="docs">
-          @for (d of docs(); track d.label; let i = $index) {
-            <li>
-              @if (d.file) {
-                <span class="ico ico--ok" aria-hidden="true">
-                  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2.500 6.200l2.200 2.200 4.800-4.800"/></svg>
-                </span>
-                <span class="doc-name">{{ d.label }}</span>
-                <span class="doc-file">{{ d.file }}</span>
-              } @else {
-                <span class="ico ico--warn" aria-hidden="true">!</span>
-                <span class="doc-name">{{ d.label }}</span>
-                <input #f type="file" hidden (change)="setDoc(i, $event)">
-                <button type="button" class="btn btn--ghost btn--sm" (click)="f.click()">UPLOAD</button>
-              }
-            </li>
-          }
-        </ul>
+
+        <div class="field">
+          <span class="lbl">Fuel</span>
+          <div class="seg" role="radiogroup" aria-label="Fuel">
+            @for (x of fuels; track x) {
+              <button
+                type="button"
+                role="radio"
+                [class.on]="v().fuel === x"
+                [attr.aria-checked]="v().fuel === x"
+                (click)="f.fuel.setValue(x)"
+              >
+                {{ x }}
+              </button>
+            }
+          </div>
+        </div>
       </div>
-  
-      <!-- Publishing -->
-      <div class="panel" style="--i:3">
-        <div class="panel-head"><h3>PUBLISHING</h3></div>
-  
-        <div class="steps" aria-label="Publishing stage">
-          @for (s of steps; track s.id; let last = $last) {
-            <span class="step" [class.step--on]="stage() === s.id">{{ s.label }}</span>
-            @if (!last) { <span class="arrow" aria-hidden="true">→</span> }
-          }
-        </div>
-  
-        <button type="button" class="opt opt--plain" role="switch"
-                [class.opt--on]="showOnWeb()"
-                [attr.aria-checked]="showOnWeb()"
-                (click)="showOnWeb.set(!showOnWeb())">
-          <span class="switch"></span>
-          <span class="opt-text"><span>Show on website once approved</span></span>
-        </button>
-  
-        <label class="field field--tight">
-          <span class="lbl">Assigned salesperson</span>
-          <select class="control select" (change)="salesperson.set(val($event))">
-            @for (p of salespeople; track p) {
-              <option [value]="p" [selected]="p === salesperson()">{{ p }}</option>
+    </section>
+
+    <!-- 3 · ACQUISITION & PRICING -->
+    <section class="block" style="--i: 3">
+      <h2 class="sec"><span class="num">3</span>ACQUISITION &amp; PRICING</h2>
+
+      <div class="row row--3">
+        <label class="field">
+          <span class="lbl">Stock no.</span>
+          <input
+            class="control"
+            type="text"
+            [value]="stockNo() || 'Auto-generated on save'"
+            disabled
+          />
+        </label>
+
+        <label class="field">
+          <span class="lbl">Source <span class="tag">INTERNAL</span></span>
+          <select class="control select" formControlName="source">
+            @for (s of sources; track s) {
+              <option [value]="s">{{ s }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="lbl">Branch / Yard</span>
+          <select class="control select" formControlName="branch">
+            @for (b of branches; track b) {
+              <option [value]="b">{{ b }}</option>
             }
           </select>
         </label>
       </div>
-  
-      <!-- Activity -->
-      <div class="panel" style="--i:4">
-        <div class="panel-head"><h3>ACTIVITY</h3></div>
-        <ul class="activity">
-          @for (e of entries(); track $index) {
-            <li><time>{{ e.time }}</time><span>{{ e.text }}</span></li>
+
+      <div class="row row--3">
+        <label class="field">
+          <span class="lbl">Purchase cost (KES) <span class="tag">INTERNAL</span></span>
+          <input
+            class="control"
+            type="text"
+            inputmode="numeric"
+            [value]="fmt(v().cost)"
+            (input)="num(f.cost, $event)"
+          />
+        </label>
+
+        <label class="field">
+          <span class="lbl">Selling price (KES)</span>
+          <input
+            class="control"
+            type="text"
+            inputmode="numeric"
+            [class.control--bad]="bad(f.price)"
+            [value]="fmt(v().price)"
+            (input)="num(f.price, $event)"
+          />
+          @if (bad(f.price)) {
+            <span class="err">Enter the selling price</span>
           }
-        </ul>
+        </label>
+
+        <div class="field">
+          <span class="lbl">Gross margin</span>
+          <div class="margin" [class.margin--neg]="margin() < 0" aria-live="polite">
+            KES {{ fmt(margin()) || '0' }} · {{ marginPct() }}%
+          </div>
+        </div>
       </div>
-  
-      <!-- Actions -->
-      <div class="actions">
-        <button type="button" class="btn btn--ghost" (click)="saveDraft()">SAVE DRAFT</button>
-        <button type="button" class="btn btn--primary" (click)="submit()">SUBMIT FOR REVIEW</button>
+
+      <div class="row row--opts">
+        <button
+          type="button"
+          class="opt"
+          role="switch"
+          [class.opt--on]="v().negotiable"
+          [attr.aria-checked]="v().negotiable"
+          (click)="f.negotiable.setValue(!f.negotiable.value)"
+        >
+          <span class="switch"></span>
+          <span class="opt-text"><strong>Price negotiable</strong></span>
+        </button>
+
+        <button
+          type="button"
+          class="opt"
+          role="switch"
+          [class.opt--on]="v().financing"
+          [attr.aria-checked]="v().financing"
+          (click)="toggleFinancing()"
+        >
+          <span class="switch"></span>
+          <span class="opt-text">
+            <strong>Financing supported</strong>
+            <small>Adds this car to the Financing list</small>
+          </span>
+        </button>
       </div>
-    </aside>
-  </section>
+
+      @if (v().financing) {
+        <div class="row row--vin">
+          <label class="field">
+            <span class="lbl">Financing bank(s)</span>
+            <input
+              class="control"
+              type="text"
+              autocomplete="off"
+              placeholder="Type a bank name and press Enter"
+              [formControl]="bankDraft"
+              [class.control--bad]="showErrors() && bankMissing()"
+              (keydown.enter)="addBank(); $event.preventDefault()"
+            />
+          </label>
+          <div class="field">
+            <span class="lbl lbl--ghost">&nbsp;</span>
+            <button type="button" class="btn btn--ghost btn--field" (click)="addBank()">
+              ADD BANK
+            </button>
+          </div>
+        </div>
+
+        @if (showErrors() && bankMissing()) {
+          <span class="err">Add at least one bank for financing</span>
+        }
+
+        @if (banks().length) {
+          <div class="chips chips--banks">
+            @for (b of banks(); track b) {
+              <button
+                type="button"
+                class="chip chip--on"
+                [attr.aria-label]="'Remove ' + b"
+                (click)="removeBank(b)"
+              >
+                {{ b }} ✕
+              </button>
+            }
+          </div>
+        }
+      }
+    </section>
+
+    <!-- 4 · FEATURES & INTERNAL NOTES -->
+    <section class="block" style="--i: 4">
+      <h2 class="sec"><span class="num">4</span>FEATURES &amp; INTERNAL NOTES</h2>
+
+      <div class="chips">
+        @for (ft of features(); track ft) {
+          <span class="chip chip--feature" [class.chip--on]="selected().has(ft)">
+            <button
+              type="button"
+              class="chip__label"
+              [attr.aria-pressed]="selected().has(ft)"
+              (click)="toggleFeature(ft)"
+            >
+              {{ ft }}
+            </button>
+            <button
+              type="button"
+              class="chip__x"
+              [attr.aria-label]="'Remove ' + ft"
+              (click)="removeFeature(ft)"
+            >
+              ✕
+            </button>
+          </span>
+        }
+
+        @if (adding()) {
+          <input
+            #newFeature
+            class="chip chip--input"
+            type="text"
+            placeholder="New feature"
+            (keydown.enter)="addFeature(newFeature.value); $event.preventDefault()"
+            (keydown.escape)="adding.set(false)"
+            (blur)="addFeature(newFeature.value)"
+            autofocus
+          />
+        } @else {
+          <button type="button" class="chip chip--add" (click)="startAdd()">+ Add</button>
+        }
+      </div>
+
+      <textarea
+        class="control notes"
+        rows="2"
+        formControlName="notes"
+        placeholder="Internal notes (staff only): seller details, repairs needed, reconditioning cost..."
+      ></textarea>
+    </section>
+  </form>
+
+  <!-- ============ SIDE COLUMN ============ -->
+  <aside class="side">
+    <!-- Photos + review video -->
+    <div class="photos" style="--i: 1">
+      <div class="cap">
+        PHOTOS · {{ photos().length }} OF {{ maxPhotos }} · FIRST PHOTO IS THE COVER
+      </div>
+
+      <div
+        class="drop"
+        [class.drop--over]="dragging()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="dragging.set(false)"
+        (drop)="onDrop($event)"
+      >
+        <span class="plus">+</span>
+        <span>Drag &amp; drop photos or</span>
+        <button type="button" class="link" (click)="openPicker()">browse</button>
+        <input #picker type="file" accept="image/*" multiple hidden (change)="onPick($event)" />
+      </div>
+
+      <div class="thumbs">
+        @for (s of slots(); track $index) {
+          @if (s) {
+            <div class="thumb thumb--filled" [class.thumb--cover]="$index === 0">
+              <img [src]="s.url" alt="Car photo {{ $index + 1 }}" />
+              @if ($index === 0) {
+                <span class="thumb__cover">COVER</span>
+              }
+              <button
+                type="button"
+                class="thumb__x"
+                [attr.aria-label]="'Remove photo ' + ($index + 1)"
+                (click)="removePhoto($index)"
+              >
+                ✕
+              </button>
+            </div>
+          } @else {
+            <button
+              type="button"
+              class="thumb thumb--empty"
+              aria-label="Add photo"
+              (click)="openPicker()"
+            >
+              +
+            </button>
+          }
+        }
+      </div>
+
+      <label class="field review-video">
+        <span class="lbl">Review video URL <span class="tag tag--public">PUBLIC</span></span>
+        <div class="input-x">
+          <input
+            class="control"
+            type="url"
+            formControlName="reviewVideoUrl"
+            placeholder="https://youtube.com/watch?v=… (shown on website)"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          @if (v().reviewVideoUrl) {
+            <button
+              type="button"
+              class="input-x__btn"
+              aria-label="Clear review video URL"
+              (click)="clearReviewVideo()"
+            >
+              ✕
+            </button>
+          }
+        </div>
+      </label>
+    </div>
+
+    <!-- Documents -->
+    <div class="panel" style="--i: 2">
+      <div class="panel-head">
+        <h3>DOCUMENTS</h3>
+        <span class="badge badge--amber"
+          >{{ uploadedCount() }} OF {{ docs().length }} UPLOADED</span
+        >
+      </div>
+
+      <ul class="docs">
+        @for (d of docs(); track d.label; let i = $index) {
+          <li>
+            @if (d.file) {
+              <span class="ico ico--ok" aria-hidden="true">
+                <svg
+                  viewBox="0 0 12 12"
+                  width="10"
+                  height="10"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                >
+                  <path d="M2.500 6.200l2.200 2.200 4.800-4.800" />
+                </svg>
+              </span>
+              <span class="doc-name">{{ d.label }}</span>
+              <span class="doc-file">{{ d.file.name }}</span>
+              <button
+                type="button"
+                class="doc-x"
+                [attr.aria-label]="'Remove ' + d.label"
+                (click)="removeDoc(i)"
+              >
+                ✕
+              </button>
+            } @else {
+              <span class="ico ico--warn" aria-hidden="true">!</span>
+              <span class="doc-name">{{ d.label }}</span>
+              <input #fileInput type="file" hidden (change)="setDoc(i, $event)" />
+              <button type="button" class="btn btn--ghost btn--sm" (click)="fileInput.click()">
+                UPLOAD
+              </button>
+            }
+          </li>
+        }
+      </ul>
+    </div>
+
+    <!-- Publishing -->
+    <div class="panel" style="--i: 3">
+      <div class="panel-head"><h3>PUBLISHING</h3></div>
+
+      <div class="steps" aria-label="Publishing stage">
+        @for (s of steps; track s.id; let last = $last) {
+          <span class="step" [class.step--on]="stage() === s.id">{{ s.label }}</span>
+          @if (!last) {
+            <span class="arrow" aria-hidden="true">→</span>
+          }
+        }
+      </div>
+
+      <button
+        type="button"
+        class="opt opt--plain"
+        role="switch"
+        [class.opt--on]="v().showOnWeb"
+        [attr.aria-checked]="v().showOnWeb"
+        (click)="f.showOnWeb.setValue(!f.showOnWeb.value)"
+      >
+        <span class="switch"></span>
+        <span class="opt-text"><span>Show on website once approved</span></span>
+      </button>
+
+      <label class="field field--tight">
+        <span class="lbl">Assigned salesperson</span>
+        <select class="control select" formControlName="salesperson">
+          @for (p of salespeople; track p) {
+            <option [value]="p">{{ p }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <!-- Save feedback -->
+    @if (notice(); as n) {
+      <div class="notice" [class.notice--err]="n.kind === 'err'" role="status">{{ n.text }}</div>
+    }
+
+    <!-- Actions -->
+    <div class="actions">
+      <button type="button" class="btn btn--ghost" [disabled]="saving()" (click)="saveDraft()">
+        {{ saving() ? 'SAVING…' : 'SAVE DRAFT' }}
+      </button>
+      <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="submit()">
+        {{ saving() ? 'SAVING…' : 'SUBMIT FOR REVIEW' }}
+      </button>
+    </div>
+  </aside>
+</section>

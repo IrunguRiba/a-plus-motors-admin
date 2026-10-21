@@ -3,51 +3,49 @@ import {
   Component,
   ElementRef,
   EventEmitter,
+  OnDestroy,
   Output,
   ViewChild,
-  WritableSignal,
   computed,
+  inject,
   signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import {
+  AbstractControl,
+  FormControl,
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
+import { finalize, map, startWith } from 'rxjs';
+import { CarService, DecodedVin } from '../../../car-service';
 
-interface Doc { label: string; file: string | null; }
-interface Photo { url: string | null; }
-interface Entry { time: string; text: string; }
+interface Doc { label: string; file: File | null; }
+interface Photo { file: File; url: string; }
+interface Notice { kind: 'ok' | 'err'; text: string; }
 type Stage = 'draft' | 'review' | 'live';
+type Status = 'draft' | 'submitted';
+type VinState = 'idle' | 'decoding' | 'populate';
 
 @Component({
   selector: 'app-add-car',
   standalone: true,
+  imports: [ReactiveFormsModule],
   templateUrl: './add-car.html',
   styleUrls: ['./add-car.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AddCar {
-  /** Emits the full record when "Submit for review" is clicked. */
+export class AddCar implements OnDestroy {
   @Output() submitted = new EventEmitter<Record<string, unknown>>();
   @Output() draftSaved = new EventEmitter<Record<string, unknown>>();
 
   @ViewChild('picker') private picker!: ElementRef<HTMLInputElement>;
 
-  /* ---------- static options ---------- */
-  readonly catalog: Record<string, string[]> = {
-    Toyota: ['Harrier', 'Land Cruiser Prado', 'Fielder', 'Axio', 'Hilux', 'Noah', 'Vitz'],
-    Nissan: ['X-Trail', 'Note', 'Juke', 'Navara'],
-    Mazda: ['CX-5', 'Demio', 'Axela'],
-    Subaru: ['Forester', 'Impreza', 'Outback'],
-    Honda: ['Vezel', 'Fit', 'CR-V'],
-    Mitsubishi: ['Outlander', 'Pajero', 'L200'],
-  };
-  readonly makeNames = Object.keys(this.catalog);
-  readonly years = Array.from({ length: 22 }, (_, i) => 2026 - i);
-  readonly bodyTypes = ['SUV', 'Sedan', 'Hatchback', 'Pickup', 'Van'];
-  readonly colours = [
-    { name: 'Pearl White', hex: '#f1f1ee' },
-    { name: 'Black', hex: '#111111' },
-    { name: 'Silver', hex: '#9a9ea6' },
-    { name: 'Red', hex: '#8b1c1c' },
-    { name: 'Blue', hex: '#1d3a6b' },
-  ];
+  private readonly fb = inject(NonNullableFormBuilder);
+  private readonly api = inject(CarService);
+
+  /* ---------- static option lists ---------- */
   readonly drives = ['2WD', '4WD', 'AWD'];
   readonly transmissions = ['Automatic', 'Manual', 'CVT'];
   readonly fuels = ['Petrol', 'Diesel', 'Hybrid', 'EV'];
@@ -59,105 +57,216 @@ export class AddCar {
     { id: 'review', label: 'IN REVIEW' },
     { id: 'live', label: 'LIVE' },
   ];
-  readonly stockNo = 'AP-0244 · auto';
-  readonly partner = 'Stanbic Bank';
   readonly maxPhotos = 12;
+  readonly photoSlots = Array.from({ length: 12 }, (_, i) => i);
 
-  /* ---------- form state ---------- */
-  make = signal('Toyota');
-  model = signal('Harrier');
-  year = signal(2021);
-  body = signal('SUV');
-  colour = signal('Pearl White');
+  /* ---------- reactive form ---------- */
+  readonly form = this.fb.group({
+    // vehicle
+    make: ['', [Validators.required, Validators.maxLength(60)]],
+    model: ['', [Validators.required, Validators.maxLength(80)]],
+    year: [
+      new Date().getFullYear(),
+      [Validators.required, Validators.min(1900), Validators.max(new Date().getFullYear() + 1)],
+    ],
+    body: [''],
+    colour: [''],
+    // specifications
+    mileage: [0, [Validators.min(0)]],
+    engine: [0, [Validators.min(0)]],
+    drive: ['2WD'],
+    transmission: ['Automatic'],
+    fuel: ['Petrol'],
+    vin: ['', [Validators.maxLength(25)]],
+    // acquisition & pricing
+    source: [this.sources[0]],
+    branch: [this.branches[0]],
+    cost: [0, [Validators.min(0)]],
+    price: [0, [Validators.required, Validators.min(1)]],
+    negotiable: [false],
+    financing: [false],
+    // notes + publishing + media
+    notes: [''],
+    showOnWeb: [true],
+    salesperson: [this.salespeople[0]],
+    reviewVideoUrl: [''],
+  });
 
-  mileage = signal(42000);
-  engine = signal(1998);
-  drive = signal('2WD');
-  transmission = signal('Automatic');
-  fuel = signal('Petrol');
-  vin = signal('JTMRJREV5MD••••••');
+  readonly f = this.form.controls;
 
-  source = signal('Trade-in');
-  branch = signal('Main Yard');
-  cost = signal(3640000);
-  price = signal(4250000);
-  negotiable = signal(false);
-  financing = signal(true);
+  /** Live snapshot of the form as a signal. */
+  readonly v = toSignal(
+    this.form.valueChanges.pipe(startWith(null), map(() => this.form.getRawValue())),
+    { requireSync: true },
+  );
 
-  features = signal(['Leather seats', 'Sunroof', 'Reverse camera', 'Apple CarPlay', 'Keyless entry']);
-  selected = signal(new Set(['Leather seats', 'Sunroof', 'Reverse camera', 'Keyless entry']));
-  adding = signal(false);
-  notes = signal('');
+  /* ---------- extra UI state ---------- */
+  readonly bankDraft = new FormControl('', { nonNullable: true });
+  readonly banks = signal<string[]>([]);
 
-  photos = signal<Photo[]>([{ url: null }]);
-  dragging = signal(false);
-  docs = signal<Doc[]>([
-    { label: 'Logbook / ownership', file: 'logbook_KDG214A.pdf' },
-    { label: 'Inspection report', file: 'inspection_0244.pdf' },
+  readonly features = signal<string[]>([
+    'Leather seats', 'Sunroof', 'Reverse camera', 'Apple CarPlay', 'Keyless entry',
+  ]);
+  readonly selected = signal(new Set<string>());
+  readonly adding = signal(false);
+
+  readonly photos = signal<Photo[]>([]);
+  readonly dragging = signal(false);
+  readonly docs = signal<Doc[]>([
+    { label: 'Logbook / ownership', file: null },
+    { label: 'Inspection report', file: null },
     { label: 'Valuation certificate', file: null },
     { label: 'Seller ID / KRA PIN', file: null },
   ]);
 
-  stage = signal<Stage>('draft');
-  showOnWeb = signal(true);
-  salesperson = signal('Mary Wanjiru');
-  savedAt = signal('17:12');
-  entries = signal<Entry[]>([
-    { time: '17:08', text: 'Joel Irungu created draft' },
-    { time: '17:10', text: 'VIN decoded · 2021 Toyota Harrier' },
-    { time: '17:12', text: 'Photo added · cover set' },
-  ]);
+  readonly stage = signal<Stage>('draft');
+  readonly carId = signal<string | null>(null);
+  readonly stockNo = signal('');
+  readonly savedAt = signal('');
+  readonly saving = signal(false);
+  readonly showErrors = signal(false);
+  readonly notice = signal<Notice | null>(null);
+
+  /* ---------- VIN decode state ---------- */
+  readonly vinState = signal<VinState>('idle');
+  readonly decoded = signal<DecodedVin | null>(null);
+  readonly decodeMsg = signal('');
 
   /* ---------- derived ---------- */
-  models = computed(() => this.catalog[this.make()] ?? []);
-  margin = computed(() => this.price() - this.cost());
-  marginPct = computed(() =>
-    this.price() > 0 ? ((this.margin() / this.price()) * 100).toFixed(1) : '0.0'
+  readonly margin = computed(() => this.v().price - this.v().cost);
+  readonly marginPct = computed(() =>
+    this.v().price > 0 ? ((this.margin() / this.v().price) * 100).toFixed(1) : '0.0',
   );
-  uploadedCount = computed(() => this.docs().filter((d) => d.file).length);
-  slots = computed<(Photo | null)[]>(() =>
-    Array.from({ length: 5 }, (_, i) => this.photos()[i] ?? null)
+  readonly uploadedCount = computed(() => this.docs().filter((d) => d.file).length);
+  readonly slots = computed<(Photo | null)[]>(() =>
+    this.photoSlots.map((i) => this.photos()[i] ?? null),
   );
+  readonly bankMissing = computed(() => this.v().financing && this.banks().length === 0);
+
+  readonly badgeText = computed(() => {
+    if (this.stage() !== 'draft') return `SUBMITTED · ${this.savedAt()}`;
+    return this.savedAt() ? `DRAFT · SAVED ${this.savedAt()}` : 'DRAFT · NOT SAVED YET';
+  });
+
+  readonly vinButtonLabel = computed(() => {
+    switch (this.vinState()) {
+      case 'decoding': return 'DECODING…';
+      case 'populate': return 'POPULATE';
+      default: return 'DECODE';
+    }
+  });
 
   /* ---------- helpers ---------- */
-  val(e: Event): string {
-    return (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
-  }
-
   fmt(n: number): string {
-    return n ? Math.abs(n) === n ? n.toLocaleString('en-US') : '-' + Math.abs(n).toLocaleString('en-US') : '';
+    return n ? n.toLocaleString('en-US') : '';
   }
 
-  num(target: WritableSignal<number>, e: Event): void {
+  num(ctrl: FormControl<number>, e: Event, group = true, max = 12): void {
     const el = e.target as HTMLInputElement;
-    const n = Number(el.value.replace(/\D/g, ''));
-    target.set(n);
-    el.value = this.fmt(n);
+    const digits = el.value.replace(/\D/g, '').slice(0, max);
+    const n = digits ? Number(digits) : 0;
+    ctrl.setValue(n);
+    ctrl.markAsDirty();
+    el.value = group ? this.fmt(n) : digits;
+  }
+
+  bad(c: AbstractControl): boolean {
+    return this.showErrors() && c.invalid;
   }
 
   private now(): string {
     return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   }
 
-  private log(text: string): void {
-    this.entries.update((list) => [...list, { time: this.now(), text }]);
+  /* ---------- VIN: decode → populate ---------- */
+  onVinButton(): void {
+    const state = this.vinState();
+    if (state === 'populate') {
+      this.applyDecoded();
+      return;
+    }
+    if (state === 'decoding') return;
+    this.decodeVin();
   }
 
-  /* ---------- vehicle ---------- */
-  onMake(e: Event): void {
-    const m = this.val(e);
-    this.make.set(m);
-    this.model.set(this.catalog[m][0]);
+  private decodeVin(): void {
+    const vin = this.f.vin.value.trim().toUpperCase();
+    this.decoded.set(null);
+    this.decodeMsg.set('');
+
+    if (vin.length < 11) {
+      this.decodeMsg.set('Enter the full VIN / chassis number first.');
+      return;
+    }
+
+    this.vinState.set('decoding');
+    this.api
+      .decodeVin(vin)
+      .pipe(
+        finalize(() => {
+          if (this.vinState() === 'decoding') this.vinState.set('idle');
+        }),
+      )
+      .subscribe({
+        next: (d) => {
+          if (Object.keys(d).length) {
+            this.decoded.set(d);
+            this.vinState.set('populate');
+          } else {
+            this.decodeMsg.set(
+              'No details found for this number. You can fill the fields in manually.',
+            );
+          }
+        },
+        error: () => {
+          this.decodeMsg.set(
+            'VIN lookup failed. Check your connection or fill the fields in manually.',
+          );
+        },
+      });
   }
 
-  decodeVin(): void {
-    this.log(`VIN decoded · ${this.year()} ${this.make()} ${this.model()}`);
+  applyDecoded(): void {
+    const d = this.decoded();
+    if (!d) return;
+    const c = this.f;
+    if (d.make) c.make.setValue(d.make);
+    if (d.model) c.model.setValue(d.model);
+    if (d.year) c.year.setValue(d.year);
+    if (d.body) c.body.setValue(d.body);
+    if (d.engine) c.engine.setValue(d.engine);
+    if (d.drive) c.drive.setValue(d.drive);
+    if (d.transmission) c.transmission.setValue(d.transmission);
+    if (d.fuel) c.fuel.setValue(d.fuel);
+    this.form.markAsDirty();
+    this.decoded.set(null);
+    this.vinState.set('idle');
+    this.decodeMsg.set('Vehicle details populated from VIN.');
   }
 
-  /* ---------- pricing ---------- */
+  onVinInput(): void {
+    if (this.vinState() === 'populate') {
+      this.vinState.set('idle');
+      this.decoded.set(null);
+    }
+    if (this.decodeMsg()) this.decodeMsg.set('');
+  }
+
+  /* ---------- pricing / financing ---------- */
   toggleFinancing(): void {
-    this.financing.update((v) => !v);
-    this.log(this.financing() ? 'Financing enabled' : 'Financing disabled');
+    this.f.financing.setValue(!this.f.financing.value);
+  }
+
+  addBank(): void {
+    const b = this.bankDraft.value.trim();
+    if (b && !this.banks().some((x) => x.toLowerCase() === b.toLowerCase())) {
+      this.banks.update((l) => [...l, b]);
+    }
+    this.bankDraft.setValue('');
+  }
+
+  removeBank(b: string): void {
+    this.banks.update((l) => l.filter((x) => x !== b));
   }
 
   /* ---------- features ---------- */
@@ -171,7 +280,9 @@ export class AddCar {
 
   startAdd(): void {
     this.adding.set(true);
-    setTimeout(() => (document.querySelector('.chip--input') as HTMLInputElement | null)?.focus());
+    setTimeout(
+      () => (document.querySelector('.chip--input') as HTMLInputElement | null)?.focus(),
+    );
   }
 
   addFeature(raw: string): void {
@@ -182,7 +293,16 @@ export class AddCar {
     }
     this.adding.set(false);
   }
-
+/** Discards a feature from the list entirely (and unselects it). */
+removeFeature(ft: string): void {
+  this.features.update((list) => list.filter((f) => f !== ft));
+  this.selected.update((s) => {
+    if (!s.has(ft)) return s;
+    const next = new Set(s);
+    next.delete(ft);
+    return next;
+  });
+}
   /* ---------- photos ---------- */
   openPicker(): void {
     this.picker.nativeElement.click();
@@ -207,52 +327,134 @@ export class AddCar {
 
   private addFiles(files: FileList | null | undefined): void {
     if (!files?.length) return;
-    const incoming = Array.from(files)
-      .filter((f) => f.type.startsWith('image/'))
-      .map<Photo>((f) => ({ url: URL.createObjectURL(f) }));
-    if (!incoming.length) return;
+    const images = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    const room = this.maxPhotos - this.photos().length;
+    const accepted = images.slice(0, Math.max(room, 0));
+    if (!accepted.length) {
+      if (images.length)
+        this.notice.set({
+          kind: 'err',
+          text: `Maximum of ${this.maxPhotos} photos reached.`,
+        });
+      return;
+    }
+    if (accepted.length < images.length) {
+      this.notice.set({
+        kind: 'err',
+        text: `Only ${accepted.length} of ${images.length} photos added (limit ${this.maxPhotos}).`,
+      });
+    }
+    this.photos.update((list) => [
+      ...list,
+      ...accepted.map<Photo>((file) => ({ file, url: URL.createObjectURL(file) })),
+    ]);
+  }
 
-    this.photos.update((list) => {
-      // first real upload replaces the empty cover placeholder
-      const base = list.length === 1 && list[0].url === null ? [] : list;
-      return [...base, ...incoming].slice(0, this.maxPhotos);
-    });
-    this.log(incoming.length > 1 ? `${incoming.length} photos added` : 'Photo added');
+  removePhoto(i: number): void {
+    const p = this.photos()[i];
+    if (p) URL.revokeObjectURL(p.url);
+    this.photos.update((list) => list.filter((_, idx) => idx !== i));
+  }
+
+  ngOnDestroy(): void {
+    this.photos().forEach((p) => URL.revokeObjectURL(p.url));
   }
 
   /* ---------- documents ---------- */
   setDoc(index: number, e: Event): void {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    this.docs.update((list) => list.map((d, i) => (i === index ? { ...d, file: file.name } : d)));
-    this.log(`${this.docs()[index].label} uploaded`);
+    this.docs.update((list) =>
+      list.map((d, i) => (i === index ? { ...d, file } : d)),
+    );
   }
 
-  /* ---------- actions ---------- */
-  private snapshot(): Record<string, unknown> {
+  removeDoc(index: number): void {
+    this.docs.update((list) =>
+      list.map((d, i) => (i === index ? { ...d, file: null } : d)),
+    );
+  }
+
+  /* ---------- review video ---------- */
+  clearReviewVideo(): void {
+    this.f.reviewVideoUrl.setValue('');
+    this.f.reviewVideoUrl.markAsDirty();
+  }
+
+  /* ---------- save / submit ---------- */
+  private snapshot(status: Status): Record<string, unknown> {
+    const v = this.form.getRawValue();
     return {
-      make: this.make(), model: this.model(), year: this.year(), body: this.body(), colour: this.colour(),
-      mileage: this.mileage(), engine: this.engine(), drive: this.drive(),
-      transmission: this.transmission(), fuel: this.fuel(), vin: this.vin(),
-      stockNo: this.stockNo, source: this.source(), branch: this.branch(),
-      cost: this.cost(), price: this.price(), margin: this.margin(),
-      negotiable: this.negotiable(), financing: this.financing(),
-      features: [...this.selected()], notes: this.notes(),
-      documents: this.docs(), showOnWebsite: this.showOnWeb(),
-      salesperson: this.salesperson(), stage: this.stage(),
+      ...v,
+      vin: v.vin.trim().toUpperCase(),
+      make: v.make.trim(),
+      model: v.model.trim(),
+      margin: v.price - v.cost,
+      banks: v.financing ? this.banks() : [],
+      features: [...this.selected()],
+      documents: this.docs()
+        .filter((d) => d.file)
+        .map((d) => ({ label: d.label, fileName: d.file!.name })),
+      status,
     };
   }
 
   saveDraft(): void {
-    this.savedAt.set(this.now());
-    this.log('Draft saved');
-    this.draftSaved.emit(this.snapshot());
+    this.persist('draft');
   }
 
   submit(): void {
-    this.stage.set('review');
-    this.savedAt.set(this.now());
-    this.log('Submitted for review');
-    this.submitted.emit(this.snapshot());
+    this.persist('submitted');
+  }
+
+  private persist(status: Status): void {
+    if (this.saving()) return;
+    this.notice.set(null);
+
+    if (status === 'submitted') {
+      this.showErrors.set(true);
+      this.form.markAllAsTouched();
+      if (this.form.invalid || this.bankMissing()) {
+        this.notice.set({
+          kind: 'err',
+          text: 'Please complete the highlighted fields before submitting.',
+        });
+        return;
+      }
+    }
+
+    const payload = this.snapshot(status);
+    const docFiles = this.docs()
+      .filter((d) => d.file)
+      .map((d) => d.file!);
+
+    this.saving.set(true);
+    this.api
+      .saveCar(this.carId(), payload, this.photos().map((p) => p.file), docFiles)
+      .pipe(finalize(() => this.saving.set(false)))
+      .subscribe({
+        next: (res) => {
+          this.carId.set(res.id);
+          if (res.stockNo) this.stockNo.set(res.stockNo);
+          this.savedAt.set(this.now());
+          const record = { ...payload, id: res.id, stockNo: this.stockNo() };
+
+          if (status === 'submitted') {
+            this.stage.set('review');
+            this.notice.set({ kind: 'ok', text: 'Car submitted for review.' });
+            this.submitted.emit(record);
+          } else {
+            this.notice.set({ kind: 'ok', text: 'Draft saved.' });
+            this.draftSaved.emit(record);
+          }
+        },
+        error: (err) =>
+          this.notice.set({
+            kind: 'err',
+            text:
+              err?.error?.message ??
+              'Could not save the car. Check your connection and try again.',
+          }),
+      });
   }
 }

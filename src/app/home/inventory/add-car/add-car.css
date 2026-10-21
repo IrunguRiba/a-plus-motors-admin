@@ -1,7 +1,5 @@
 :host {
   --ink: #000000;
-  --muted: #000000;
-  --label: #000000;
   --line: #e4d6d8;
   --line-soft: #eee3e5;
   --surface: #f9f5f6;
@@ -19,10 +17,9 @@
   --red-tint: #fdeceb;
   --red-line: #f3c2be;
   --down: #ff0000;
-  --pct: #36415a;
   --on-accent: #f9f5f6;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  color-scheme: light;
+
   display: block;
   font-family:
     'Inter',
@@ -65,13 +62,11 @@ button {
   margin: 0 auto;
   color: var(--ink);
 }
-
 .card.main {
   border: 1.5px solid var(--ink);
   border-radius: 6px;
   background: var(--surface);
 }
-
 .side {
   display: flex;
   flex-direction: column;
@@ -108,16 +103,13 @@ button {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: var(--ink);
 }
 .card-head p {
   margin: 0;
   font-size: 16px;
   font-weight: 400;
-  color: var(--ink);
 }
 
-/* badge — bordered + consistent weight */
 .badge {
   display: inline-block;
   flex: none;
@@ -137,26 +129,6 @@ button {
   border-color: var(--amber);
   color: var(--amber);
 }
-.badge--green {
-  background: var(--green-tint);
-  border-color: var(--green);
-  color: var(--green);
-}
-.badge--blue {
-  background: var(--blue-tint);
-  border-color: var(--blue);
-  color: var(--blue);
-}
-.badge--red {
-  background: var(--red-tint);
-  border-color: var(--red);
-  color: var(--red);
-}
-.badge--neutral {
-  background: var(--surface-alt);
-  border-color: var(--line);
-  color: var(--ink);
-}
 
 /* ============ SECTIONS ============ */
 .block {
@@ -171,7 +143,6 @@ button {
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.12em;
-  color: var(--ink);
 }
 .num {
   display: grid;
@@ -221,13 +192,11 @@ button {
   font-weight: 500;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--ink);
 }
 .lbl--ghost {
   visibility: hidden;
 }
 
-/* tag — bordered like the badge */
 .tag {
   display: inline-block;
   margin-left: 4px;
@@ -236,41 +205,38 @@ button {
   font-weight: 500;
   letter-spacing: 0.08em;
   line-height: 1.4;
-  color: var(--ink);
   background: var(--surface-alt);
   border: 1px solid var(--line);
   border-radius: 3px;
   text-transform: uppercase;
   vertical-align: 1px;
 }
+.tag--public {
+  background: var(--blue-tint);
+  border-color: var(--blue);
+  color: var(--blue);
+}
 
 /* ============ CONTROLS ============ */
 .control {
   width: 100%;
-  height: 56px;
-  padding: 0 18px;
-  font-size: 18px;
-  font-weight: 400;
-  color: var(--ink);
+  height: 42px;
+  padding: 0 14px;
+  font-size: 16px;
   background: var(--surface);
   border: 1.5px solid var(--line);
-  border-radius: 6px;
+  border-radius: 0;
   outline: none;
-  transition:
-    border-color 0.2s var(--ease),
-    box-shadow 0.2s var(--ease),
-    background 0.2s;
+  transition: border-color 0.2s var(--ease);
 }
 .control:hover:not(:disabled) {
   border-color: var(--ink);
 }
 .control:focus-visible {
   border-color: var(--blue);
-  box-shadow: 0 0 0 3px var(--blue-tint);
 }
 .control:disabled {
   background: var(--surface-alt);
-  color: var(--ink);
   cursor: not-allowed;
 }
 .control--vin {
@@ -280,39 +246,23 @@ button {
 .select {
   appearance: none;
   -webkit-appearance: none;
-  padding-right: 40px;
+  padding-right: 36px;
   cursor: pointer;
-  background-color: var(--surface);
-  color: var(--ink);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23000'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 16px center;
-}
-
-.select option {
-  background-color: var(--surface);   
-  color: var(--ink);                 
-}
-
-.select option:checked,
-.select option:hover {
-  background-color: var(--blue-tint); 
-  color: var(--blue);                 
+  background-position: right 14px center;
 }
 
 .notes {
   height: auto;
-  min-height: 64px;
-  padding: 14px 18px;
+  min-height: 56px;
+  padding: 12px 14px;
   margin-top: 18px;
-  font-size: 17px;
-  font-weight: 400;
+  font-size: 15px;
   line-height: 1.5;
   resize: vertical;
-  color: var(--ink);
 }
 .notes::placeholder {
-  color: var(--ink);
   opacity: 0.5;
 }
 
@@ -321,9 +271,9 @@ button {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  height: 56px;
+  height: 42px;
   border: 1.5px solid var(--line);
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
   background: var(--surface);
 }
@@ -331,9 +281,7 @@ button {
   border: 0;
   border-left: 1px solid var(--line);
   background: var(--surface);
-  font-size: 17px;
-  font-weight: 400;
-  color: var(--ink);
+  font-size: 15px;
   transition:
     background 0.2s var(--ease),
     color 0.2s var(--ease);
@@ -354,81 +302,18 @@ button {
   outline-offset: -2px;
 }
 
-/* pills */
-.pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.pill {
-  height: 36px;
-  padding: 0 18px;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  transition:
-    background 0.2s var(--ease),
-    color 0.2s var(--ease),
-    border-color 0.2s var(--ease);
-}
-.pill:hover:not(.pill--on) {
-  border-color: var(--ink);
-}
-.pill--on {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-accent);
-}
-.pill:focus-visible,
-.chip:focus-visible,
-.swatch:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
-}
-
-/* swatches */
-.swatches {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 2px 0 0 2px;
-}
-.swatch {
-  position: relative;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  transition:
-    transform 0.25s var(--ease),
-    box-shadow 0.25s var(--ease);
-}
-.swatch:hover {
-  transform: scale(1.1);
-}
-.swatch--on {
-  box-shadow:
-    0 0 0 3px var(--surface),
-    0 0 0 4px var(--blue);
-}
-
 /* margin */
 .margin {
   display: flex;
   align-items: center;
-  height: 56px;
-  padding: 0 18px;
-  font-size: 18px;
+  height: 42px;
+  padding: 0 14px;
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: 0.01em;
   color: var(--green);
   background: var(--green-tint);
   border: 1.5px solid var(--green-line);
-  border-radius: 6px;
+  border-radius: 0;
   transition:
     background 0.25s,
     color 0.25s,
@@ -440,25 +325,14 @@ button {
   border-color: var(--down);
 }
 
-.pct {
-  color: var(--pct);
-  font-weight: 700;
-}
-.down,
-.margin--neg .pct {
-  color: var(--down);
-  font-weight: 700;
-}
-
 /* switch cards */
 .opt {
   display: flex;
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 16px;
+  padding: 14px;
   text-align: left;
-  color: var(--ink);
   background: var(--surface);
   border: 1.5px solid var(--line);
   border-radius: 6px;
@@ -487,14 +361,11 @@ button {
   min-width: 0;
 }
 .opt-text strong {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
-  color: var(--ink);
 }
 .opt-text small {
   font-size: 14px;
-  font-weight: 400;
-  color: var(--ink);
   line-height: 1.4;
 }
 
@@ -503,7 +374,7 @@ button {
   border: 0;
   background: transparent;
   margin-top: 14px;
-  font-size: 16px;
+  font-size: 15px;
 }
 .opt--plain:hover {
   border: 0;
@@ -530,7 +401,6 @@ button {
   height: 20px;
   border-radius: 50%;
   background: var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   transition: transform 0.25s var(--ease);
 }
 .opt--on .switch {
@@ -547,11 +417,9 @@ button {
   gap: 10px;
 }
 .chip {
-  height: 38px;
-  padding: 0 18px;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--ink);
+  height: 34px;
+  padding: 0 16px;
+  font-size: 15px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -575,20 +443,96 @@ button {
   color: var(--ink);
 }
 .chip--input {
-  width: 170px;
+  width: 160px;
   outline: none;
   border-color: var(--blue);
+}
+.chips--banks {
+  margin-top: 14px;
+}
+
+/* feature chips */
+.chip--feature {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+  transition:
+    border-color 0.2s var(--ease),
+    background 0.2s var(--ease);
+}
+.chip--feature:hover {
+  border-color: var(--ink);
+}
+.chip--feature.chip--on {
+  background: var(--blue-tint);
+  border-color: var(--blue-line);
+}
+.chip--feature.chip--on:hover {
+  border-color: var(--blue);
+}
+
+.chip__label {
+  height: 100%;
+  padding: 0 12px 0 16px;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.chip--feature.chip--on .chip__label {
+  color: var(--blue);
+}
+.chip__label:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+.chip__x {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  width: 28px;
+  padding: 0 8px 0 0;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-left: 1px solid transparent;
+  opacity: 0.55;
+  cursor: pointer;
+  transition:
+    color 0.2s var(--ease),
+    opacity 0.2s var(--ease);
+}
+.chip--feature:hover .chip__x,
+.chip__x:focus-visible {
+  opacity: 1;
+}
+.chip__x:hover {
+  color: var(--red);
+}
+.chip__x:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
 }
 
 /* buttons */
 .btn {
-  height: 58px;
-  padding: 0 24px;
-  font-size: 16px;
+  height: 48px;
+  padding: 0 22px;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink);
   background: var(--surface);
   border: 1.5px solid var(--ink);
   border-radius: 6px;
@@ -622,15 +566,32 @@ button {
 }
 .btn--field {
   width: 100%;
-  height: 52px;
+  height: 42px;
   font-size: 13px;
   letter-spacing: 0.12em;
 }
 .btn--sm {
-  height: 42px;
-  padding: 0 18px;
-  font-size: 15px;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
   letter-spacing: 0.1em;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* VIN POPULATE state */
+.btn--populate {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--on-accent);
+}
+.btn--populate:hover {
+  background: var(--green-line);
+  border-color: var(--green-line);
+  color: var(--on-accent);
 }
 
 /* ============ SIDE ============ */
@@ -639,7 +600,6 @@ button {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.09em;
-  color: var(--ink);
 }
 
 .drop {
@@ -648,10 +608,8 @@ button {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  height: 120px;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--ink);
+  height: 110px;
+  font-size: 15px;
   background: var(--surface-alt);
   border: 1px dashed var(--line);
   border-radius: 6px;
@@ -672,9 +630,7 @@ button {
 
 .link {
   padding: 0;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--ink);
+  font-size: 15px;
   text-decoration: underline;
   text-underline-offset: 2px;
   background: none;
@@ -687,11 +643,12 @@ button {
 
 .thumbs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   margin-top: 10px;
 }
 .thumb {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 14 / 9;
@@ -702,7 +659,6 @@ button {
 .thumb--filled {
   background: var(--surface-alt);
   border: 1.5px solid var(--line);
-  color: var(--ink);
 }
 .thumb--filled img {
   width: 100%;
@@ -715,26 +671,106 @@ button {
 .thumb--empty {
   font-size: 19px;
   font-weight: 300;
-  color: var(--ink);
   background: var(--surface);
   border: 1px dashed var(--line);
   transition:
     border-color 0.2s var(--ease),
-    color 0.2s var(--ease),
     background 0.2s;
 }
 .thumb--empty:hover {
   border-color: var(--ink);
-  color: var(--ink);
   background: var(--surface-alt);
 }
 
+.thumb__x {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--on-accent);
+  background: var(--ink);
+  border: 0;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s var(--ease);
+}
+.thumb:hover .thumb__x,
+.thumb__x:focus-visible {
+  opacity: 1;
+}
+.thumb__cover {
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--on-accent);
+  background: var(--ink);
+  border-radius: 3px;
+}
+@media (hover: none) {
+  .thumb__x {
+    opacity: 1;
+  }
+}
+
+.review-video {
+  margin-top: 16px;
+}
+.review-video .control {
+  height: 42px;
+  font-size: 15px;
+}
+
+.input-x {
+  position: relative;
+}
+.input-x .control {
+  padding-right: 40px;
+}
+.input-x__btn {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition:
+    background 0.2s var(--ease),
+    color 0.2s var(--ease),
+    border-color 0.2s var(--ease);
+}
+.input-x__btn:hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--on-accent);
+}
+.input-x__btn:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
 .panel {
-  padding: 20px;
+  padding: 18px;
   background: var(--surface);
   border: 1.5px solid var(--line);
   border-radius: 6px;
-  color: var(--ink);
 }
 .panel-head {
   display: flex;
@@ -748,7 +784,6 @@ button {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: var(--ink);
 }
 
 .docs {
@@ -760,11 +795,9 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
+  min-height: 36px;
   padding: 4px 0;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--ink);
+  font-size: 15px;
 }
 .docs li + li {
   border-top: 1px solid var(--line-soft);
@@ -774,10 +807,34 @@ button {
   min-width: 0;
 }
 .doc-file {
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--ink);
-  letter-spacing: 0.01em;
+  font-size: 14px;
+}
+
+.doc-x {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition:
+    background 0.2s var(--ease),
+    color 0.2s var(--ease),
+    border-color 0.2s var(--ease);
+}
+.doc-x:hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--on-accent);
+}
+.doc-x:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
 }
 
 .ico {
@@ -808,11 +865,10 @@ button {
   flex-wrap: wrap;
 }
 .step {
-  padding: 6px 10px;
-  font-size: 15px;
+  padding: 5px 9px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.08em;
-  color: var(--ink);
   background: var(--surface-alt);
   border: 1px solid var(--line);
   border-radius: 3px;
@@ -827,28 +883,6 @@ button {
 }
 .arrow {
   font-size: 13px;
-  color: var(--ink);
-}
-
-.activity {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 6px;
-}
-.activity li {
-  display: grid;
-  grid-template-columns: 48px 1fr;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--ink);
-}
-.activity time {
-  font-weight: 600;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
 }
 
 .actions {
@@ -857,6 +891,41 @@ button {
   gap: 16px;
   margin-top: auto;
   padding-top: 8px;
+}
+
+/* validation */
+.err {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--red);
+}
+.err--ok {
+  color: var(--green);
+}
+.control--bad {
+  border-color: var(--red);
+}
+.control--bad:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* save feedback */
+.notice {
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--green);
+  background: var(--green-tint);
+  border: 1.5px solid var(--green-line);
+  border-radius: 6px;
+}
+.notice--err {
+  color: var(--red);
+  background: var(--red-tint);
+  border-color: var(--red);
 }
 
 /* ============ RESPONSIVE ============ */
@@ -880,6 +949,9 @@ button {
   }
   .lbl--ghost {
     display: none;
+  }
+  .thumbs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
