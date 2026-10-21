@@ -1,11 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
   EventEmitter,
   OnDestroy,
   Output,
-  ViewChild,
   computed,
   inject,
   signal,
@@ -22,7 +20,7 @@ import { finalize, map, startWith } from 'rxjs';
 import { CarService, DecodedVin } from '../../../car-service';
 
 interface Doc { label: string; file: File | null; }
-interface Photo { file: File; url: string; }
+interface Photo { url: string; }
 interface Notice { kind: 'ok' | 'err'; text: string; }
 type Stage = 'draft' | 'review' | 'live';
 type Status = 'draft' | 'submitted';
@@ -39,8 +37,6 @@ type VinState = 'idle' | 'decoding' | 'populate';
 export class AddCar implements OnDestroy {
   @Output() submitted = new EventEmitter<Record<string, unknown>>();
   @Output() draftSaved = new EventEmitter<Record<string, unknown>>();
-
-  @ViewChild('picker') private picker!: ElementRef<HTMLInputElement>;
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(CarService);
@@ -111,7 +107,8 @@ export class AddCar implements OnDestroy {
   readonly adding = signal(false);
 
   readonly photos = signal<Photo[]>([]);
-  readonly dragging = signal(false);
+  readonly photoUrlDraft = new FormControl('', { nonNullable: true });
+  readonly pasteDraft = new FormControl('', { nonNullable: true });
   readonly docs = signal<Doc[]>([
     { label: 'Logbook / ownership', file: null },
     { label: 'Inspection report', file: null },
@@ -293,71 +290,111 @@ export class AddCar implements OnDestroy {
     }
     this.adding.set(false);
   }
-/** Discards a feature from the list entirely (and unselects it). */
-removeFeature(ft: string): void {
-  this.features.update((list) => list.filter((f) => f !== ft));
-  this.selected.update((s) => {
-    if (!s.has(ft)) return s;
-    const next = new Set(s);
-    next.delete(ft);
-    return next;
-  });
-}
-  /* ---------- photos ---------- */
-  openPicker(): void {
-    this.picker.nativeElement.click();
+
+  /** Discards a feature from the list entirely (and unselects it). */
+  removeFeature(ft: string): void {
+    this.features.update((list) => list.filter((f) => f !== ft));
+    this.selected.update((s) => {
+      if (!s.has(ft)) return s;
+      const next = new Set(s);
+      next.delete(ft);
+      return next;
+    });
   }
 
-  onPick(e: Event): void {
-    const input = e.target as HTMLInputElement;
-    this.addFiles(input.files);
-    input.value = '';
-  }
-
-  onDragOver(e: DragEvent): void {
-    e.preventDefault();
-    this.dragging.set(true);
-  }
-
-  onDrop(e: DragEvent): void {
-    e.preventDefault();
-    this.dragging.set(false);
-    this.addFiles(e.dataTransfer?.files);
-  }
-
-  private addFiles(files: FileList | null | undefined): void {
-    if (!files?.length) return;
-    const images = Array.from(files).filter((f) => f.type.startsWith('image/'));
-    const room = this.maxPhotos - this.photos().length;
-    const accepted = images.slice(0, Math.max(room, 0));
-    if (!accepted.length) {
-      if (images.length)
-        this.notice.set({
-          kind: 'err',
-          text: `Maximum of ${this.maxPhotos} photos reached.`,
-        });
-      return;
+  /* ---------- photos (URL based) ---------- */
+  private isImageUrl(url: string): boolean {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+      return true;
+    } catch {
+      return false;
     }
-    if (accepted.length < images.length) {
+  }
+
+  private addPhotoUrl(raw: string): boolean {
+    const url = raw.trim();
+    if (!url) return false;
+    if (this.photos().length >= this.maxPhotos) {
       this.notice.set({
         kind: 'err',
-        text: `Only ${accepted.length} of ${images.length} photos added (limit ${this.maxPhotos}).`,
+        text: `Maximum of ${this.maxPhotos} photos reached.`,
+      });
+      return false;
+    }
+    if (!this.isImageUrl(url)) {
+      this.notice.set({ kind: 'err', text: 'Enter a valid image URL (https://…).' });
+      return false;
+    }
+    if (this.photos().some((p) => p.url === url)) {
+      this.notice.set({ kind: 'err', text: 'That photo URL is already added.' });
+      return false;
+    }
+    this.photos.update((list) => [...list, { url }]);
+    return true;
+  }
+
+  /**
+   * Whenever at least one photo exists, the image-URL input and the paste
+   * box are cleared so staff aren't left staring at stale text.
+   */
+  private clearPhotoInputsIfAnyPhotos(): void {
+    if (this.photos().length > 0) {
+      if (this.photoUrlDraft.value) this.photoUrlDraft.setValue('');
+      if (this.pasteDraft.value) this.pasteDraft.setValue('');
+    }
+  }
+
+  addPhotoFromInput(): void {
+    this.addPhotoUrl(this.photoUrlDraft.value);
+    this.clearPhotoInputsIfAnyPhotos();
+  }
+
+  /** Parse pasted text: one or more URLs separated by newlines / commas / spaces. */
+  addPastedLinks(): void {
+    const raw = this.pasteDraft.value;
+    if (!raw.trim()) return;
+
+    const candidates = raw
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    let added = 0;
+    let skipped = 0;
+
+    for (const c of candidates) {
+      const before = this.photos().length;
+      const ok = this.addPhotoUrl(c);
+      if (ok && this.photos().length > before) added++;
+      else skipped++;
+    }
+
+    // Clear the paste box + URL input once we have photos.
+    this.clearPhotoInputsIfAnyPhotos();
+
+    if (added && !skipped) {
+      this.notice.set({
+        kind: 'ok',
+        text: `${added} photo${added === 1 ? '' : 's'} added from links.`,
+      });
+    } else if (added && skipped) {
+      this.notice.set({
+        kind: 'ok',
+        text: `${added} added, ${skipped} skipped (invalid, duplicate, or over limit).`,
       });
     }
-    this.photos.update((list) => [
-      ...list,
-      ...accepted.map<Photo>((file) => ({ file, url: URL.createObjectURL(file) })),
-    ]);
   }
 
   removePhoto(i: number): void {
-    const p = this.photos()[i];
-    if (p) URL.revokeObjectURL(p.url);
     this.photos.update((list) => list.filter((_, idx) => idx !== i));
+    // If the last photo was removed, also clear any leftover text in the inputs.
+    this.clearPhotoInputsIfAnyPhotos();
   }
 
   ngOnDestroy(): void {
-    this.photos().forEach((p) => URL.revokeObjectURL(p.url));
+    /* no object URLs to revoke anymore */
   }
 
   /* ---------- documents ---------- */
@@ -381,6 +418,77 @@ removeFeature(ft: string): void {
     this.f.reviewVideoUrl.markAsDirty();
   }
 
+  /* ---------- reset / clear form ---------- */
+  /**
+   * Fully resets the component so the form is ready for the next car.
+   */
+  resetForm(): void {
+    // 1. Reset the reactive form + clear validation/dirty state
+    this.form.reset({
+      make: '',
+      model: '',
+      year: new Date().getFullYear(),
+      body: '',
+      colour: '',
+      mileage: 0,
+      engine: 0,
+      drive: '2WD',
+      transmission: 'Automatic',
+      fuel: 'Petrol',
+      vin: '',
+      source: this.sources[0],
+      branch: this.branches[0],
+      cost: 0,
+      price: 0,
+      negotiable: false,
+      financing: false,
+      notes: '',
+      showOnWeb: true,
+      salesperson: this.salespeople[0],
+      reviewVideoUrl: '',
+    });
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    this.showErrors.set(false);
+
+    // 2. Clear extra UI state
+    this.bankDraft.setValue('');
+    this.banks.set([]);
+    this.selected.set(new Set());
+    this.adding.set(false);
+
+    this.photoUrlDraft.setValue('');
+    this.pasteDraft.setValue('');
+    this.photos.set([]);
+
+    this.docs.set([
+      { label: 'Logbook / ownership', file: null },
+      { label: 'Inspection report', file: null },
+      { label: 'Valuation certificate', file: null },
+      { label: 'Seller ID / KRA PIN', file: null },
+    ]);
+
+    // 3. Reset stage / record identity so the next save creates a new car
+    this.stage.set('draft');
+    this.carId.set(null);
+    this.stockNo.set('');
+    this.savedAt.set('');
+    this.saving.set(false);
+
+    // 4. Reset VIN state
+    this.vinState.set('idle');
+    this.decoded.set(null);
+    this.decodeMsg.set('');
+
+    // 5. Clear the notice
+    this.notice.set(null);
+
+    // Reset the native file inputs that were already consumed
+    document
+      .querySelectorAll<HTMLInputElement>('.docs input[type="file"]')
+      .forEach((el) => (el.value = ''));
+  }
+
   /* ---------- save / submit ---------- */
   private snapshot(status: Status): Record<string, unknown> {
     const v = this.form.getRawValue();
@@ -392,6 +500,7 @@ removeFeature(ft: string): void {
       margin: v.price - v.cost,
       banks: v.financing ? this.banks() : [],
       features: [...this.selected()],
+      photos: this.photos().map((p) => p.url),
       documents: this.docs()
         .filter((d) => d.file)
         .map((d) => ({ label: d.label, fileName: d.file!.name })),
@@ -430,20 +539,29 @@ removeFeature(ft: string): void {
 
     this.saving.set(true);
     this.api
-      .saveCar(this.carId(), payload, this.photos().map((p) => p.file), docFiles)
+      .saveCar(this.carId(), payload, [], docFiles)
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (res) => {
-          this.carId.set(res.id);
-          if (res.stockNo) this.stockNo.set(res.stockNo);
-          this.savedAt.set(this.now());
-          const record = { ...payload, id: res.id, stockNo: this.stockNo() };
+          const savedId = res.id;
+          const savedStockNo = res.stockNo ?? this.stockNo();
+          const savedTime = this.now();
+
+          const record = { ...payload, id: savedId, stockNo: savedStockNo };
 
           if (status === 'submitted') {
-            this.stage.set('review');
-            this.notice.set({ kind: 'ok', text: 'Car submitted for review.' });
             this.submitted.emit(record);
+            // Clear everything so the form is ready for the next car.
+            this.resetForm();
+            this.notice.set({
+              kind: 'ok',
+              text: `Car submitted for review${savedStockNo ? ` (${savedStockNo})` : ''}.`,
+            });
           } else {
+            // For drafts we keep the current record so subsequent saves update it.
+            this.carId.set(savedId);
+            if (savedStockNo) this.stockNo.set(savedStockNo);
+            this.savedAt.set(savedTime);
             this.notice.set({ kind: 'ok', text: 'Draft saved.' });
             this.draftSaved.emit(record);
           }

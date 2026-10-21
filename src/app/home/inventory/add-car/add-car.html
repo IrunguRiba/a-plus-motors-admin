@@ -405,24 +405,61 @@
         PHOTOS · {{ photos().length }} OF {{ maxPhotos }} · FIRST PHOTO IS THE COVER
       </div>
 
-      <div
-        class="drop"
-        [class.drop--over]="dragging()"
-        (dragover)="onDragOver($event)"
-        (dragleave)="dragging.set(false)"
-        (drop)="onDrop($event)"
-      >
-        <span class="plus">+</span>
-        <span>Drag &amp; drop photos or</span>
-        <button type="button" class="link" (click)="openPicker()">browse</button>
-        <input #picker type="file" accept="image/*" multiple hidden (change)="onPick($event)" />
+      <!-- Paste links box (replaces drag & drop) -->
+      <div class="paste">
+        <span class="paste__title">PASTE IMAGE LINKS</span>
+        <textarea
+          class="control paste__area"
+          rows="3"
+          [formControl]="pasteDraft"
+          placeholder="Paste one or more image URLs here (separated by new lines, commas or spaces)"
+          spellcheck="false"
+        ></textarea>
+        <div class="paste__actions">
+          <button
+            type="button"
+            class="btn btn--ghost btn--sm"
+            [disabled]="!pasteDraft.value.trim() || photos().length >= maxPhotos"
+            (click)="addPastedLinks()"
+          >
+            ADD FROM LINKS
+          </button>
+        </div>
       </div>
 
+      <!-- Single URL row -->
+      <div class="row row--vin url-row">
+        <label class="field">
+          <span class="lbl">Image URL</span>
+          <input
+            class="control"
+            type="url"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="https://example.com/car.jpg"
+            [formControl]="photoUrlDraft"
+            (keydown.enter)="addPhotoFromInput(); $event.preventDefault()"
+          />
+        </label>
+        <div class="field">
+          <span class="lbl lbl--ghost">&nbsp;</span>
+          <button
+            type="button"
+            class="btn btn--ghost btn--field"
+            [disabled]="!photoUrlDraft.value.trim() || photos().length >= maxPhotos"
+            (click)="addPhotoFromInput()"
+          >
+            ADD PHOTO
+          </button>
+        </div>
+      </div>
+
+      <!-- Larger image boxes -->
       <div class="thumbs">
         @for (s of slots(); track $index) {
           @if (s) {
             <div class="thumb thumb--filled" [class.thumb--cover]="$index === 0">
-              <img [src]="s.url" alt="Car photo {{ $index + 1 }}" />
+              <img [src]="s.url" alt="Car photo {{ $index + 1 }}" loading="lazy" />
               @if ($index === 0) {
                 <span class="thumb__cover">COVER</span>
               }
@@ -436,14 +473,10 @@
               </button>
             </div>
           } @else {
-            <button
-              type="button"
-              class="thumb thumb--empty"
-              aria-label="Add photo"
-              (click)="openPicker()"
-            >
-              +
-            </button>
+            <div class="thumb thumb--empty" aria-hidden="true">
+              <span class="thumb__plus">+</span>
+              <span class="thumb__hint">URL</span>
+            </div>
           }
         }
       </div>
@@ -533,18 +566,6 @@
           }
         }
       </div>
-
-      <button
-        type="button"
-        class="opt opt--plain"
-        role="switch"
-        [class.opt--on]="v().showOnWeb"
-        [attr.aria-checked]="v().showOnWeb"
-        (click)="f.showOnWeb.setValue(!f.showOnWeb.value)"
-      >
-        <span class="switch"></span>
-        <span class="opt-text"><span>Show on website once approved</span></span>
-      </button>
 
       <label class="field field--tight">
         <span class="lbl">Assigned salesperson</span>
