@@ -17,11 +17,9 @@ export class Overview implements OnInit, OnDestroy {
   title = 'OVERVIEW COMING SOON !';
 audio='audio-speaker.png'
   clips: Clip[] = [
-    { vid: '1.mp4' },
-    { vid: '2.mp4' },
     { vid: '3.mp4' },
     { vid: '4.mp4' },
-    { vid: '5.mp4' },
+    
   ];
 
   currentVid = this.clips[0].vid;
