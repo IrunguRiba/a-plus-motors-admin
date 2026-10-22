@@ -1,26 +1,23 @@
 <div class="overview-container">
-    <video
-      class="bg-video"
-      [src]="currentVid"
-      autoplay
-      playsinline
-      [muted]="isMuted"
-      (ended)="onVideoEnded()"
-    ></video>
-  
-    <div class="overlay"></div>
-    <button
-      class="mute-btn"
-      type="button"
-      (click)="toggleMute()"
-      [attr.aria-label]="isMuted ? 'Unmute' : 'Mute'"
-    >
-      <span class="speaker-wrap" [class.muted]="isMuted">
-        <img class="speaker-img" [src]="audio" alt="audio" />
-      </span>
-    </button>
-    <div class="content" *ngIf="showComingSoon">
-      <p class="coming-soon">{{ title }}</p>
-      <img class="mascot" [src]="stewie" alt="Stewie dancing" />
-    </div>
-  </div>
+  <video
+    #bgVideo
+    class="bg-video"
+    [src]="playVid()"
+    autoplay
+    playsinline
+    [muted]="isMuted"
+    (ended)="onVideoEnded()"
+  ></video>
+
+  <div class="overlay"></div>
+  <button
+    class="mute-btn"
+    type="button"
+    (click)="toggleMute()"
+    [attr.aria-label]="isMuted ? 'Unmute' : 'Mute'"
+  >
+    <span class="speaker-wrap" [class.muted]="isMuted">
+      <img class="speaker-img" [src]="audio" alt="audio" />
+    </span>
+  </button>
+</div>

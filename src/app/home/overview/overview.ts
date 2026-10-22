@@ -1,9 +1,11 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnDestroy,
+  ViewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-interface Clip {
-  vid: string;
-}
 
 @Component({
   selector: 'app-overview',
@@ -11,50 +13,61 @@ interface Clip {
   templateUrl: './overview.html',
   styleUrl: './overview.css',
 })
-export class Overview implements OnInit, OnDestroy {
+export class Overview implements AfterViewInit, OnDestroy {
+  @ViewChild('bgVideo') bgVideoRef!: ElementRef<HTMLVideoElement>;
+
   stewie = 'ste.gif';
   isMuted = true;
   title = 'OVERVIEW COMING SOON !';
-audio='audio-speaker.png'
-  clips: Clip[] = [
-    { vid: '3.mp4' },
-    { vid: '4.mp4' },
-    
-  ];
+  audio = 'audio-speaker.png';
 
-  currentVid = this.clips[0].vid;
-  showComingSoon = false;
+  private clipSource = '5.mp4';
 
-  private nextTimeoutId?: ReturnType<typeof setTimeout>;
-
-  ngOnInit(): void {
-    this.playRandom();
+  ngAfterViewInit(): void {
+    this.playVid();
   }
 
-  ngOnDestroy(): void {
-    if (this.nextTimeoutId) clearTimeout(this.nextTimeoutId);
-  }
-  onVideoEnded(): void {
-    this.showComingSoon = true;
-    this.nextTimeoutId = setTimeout(() => {
-      this.showComingSoon = false;
-      this.playRandom();
-    }, 1000);
+  playVid(): string {
+    return this.clipSource;
   }
 
-  playRandom(): void {
-    if (this.clips.length < 2) {
-      this.currentVid = this.clips[0].vid;
-      return;
+  private tryPlay(): void {
+    const el = this.bgVideoRef?.nativeElement;
+    if (!el) return;
+
+    const p = el.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch((err) => {
+        console.warn('Autoplay blocked, retrying muted:', err?.name);
+        el.muted = true;
+        this.isMuted = true;
+        el.play().catch((e2) => console.error('Retry failed:', e2));
+      });
     }
-    let next = this.currentVid;
-    while (next === this.currentVid) {
-      next = this.clips[Math.floor(Math.random() * this.clips.length)].vid;
-    }
-    this.currentVid = next;
   }
 
   toggleMute(): void {
     this.isMuted = !this.isMuted;
+    const el = this.bgVideoRef?.nativeElement;
+    if (el) {
+      el.muted = this.isMuted;
+      if (!this.isMuted) {
+        el.play().catch(() => {});
+      }
+    }
+  }
+
+  onVideoEnded(): void {
+    const el = this.bgVideoRef?.nativeElement;
+    if (el) { el.currentTime = 0; this.tryPlay(); }
+  }
+
+  ngOnDestroy(): void {
+    const el = this.bgVideoRef?.nativeElement;
+    if (el) {
+      el.pause();
+      el.removeAttribute('src');
+      el.load();
+    }
   }
 }
