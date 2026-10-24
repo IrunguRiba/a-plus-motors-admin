@@ -15,7 +15,7 @@
   --accent-soft: #dfe7f1;
   --green: #112D4E;
   --green-soft: #e6f4ea;
-  --amber: #b45309;
+  --amber: #5E0006;
   --amber-soft: #fdf0e1;
   --radius: 6px;
   --border: 1.5px solid var(--ink);
@@ -175,7 +175,7 @@
 
 .btn--outline.btn--sm {
   height: 36px;
-  font-size: 13px;
+  font-size: 11px;
   letter-spacing: 0.1em;
 }
 
@@ -295,15 +295,15 @@
 }
 
 .badge-attn {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 9.5px;
+  font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--amber-line);
+  color: var(--amber);
   background: transparent;
-  border: 1px solid var(--amber-line);
-  padding: 5px 9px;
-  border-radius: 3px;
+  border: 1px solid var(--amber);
+  padding: 5px 10px;
+  border-radius: 2px;
   white-space: nowrap;
 }
 
@@ -389,8 +389,8 @@
 }
 
 .card__title {
-  font-size: 14.5px;
-  font-weight: 500;
+  font-size: 16.5px;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -687,7 +687,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 19px;
+  padding: 0 9px;
   height: 66px;
   border-bottom: 1px solid var(--line);
 }
@@ -724,8 +724,8 @@
 
 .source__icon--warn {
   background: transparent;
-  border-color: var(--amber-line);
-  color: var(--amber-line);
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
 .source__icon-img {
@@ -766,6 +766,11 @@
   font-size: 15.5px;
   line-height: 1.6;
   color: var(--ink-soft);
+}
+.source__action.btn.btn--amber.btn--sm {
+  height: 28px;          
+  padding: 0 12px;       
+  margin-right: 6px;    
 }
 
 /* ============ Connect dialog ============ */
