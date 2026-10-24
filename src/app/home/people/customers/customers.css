@@ -39,7 +39,7 @@
 .cu-title {
   margin: 0;
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ink);
@@ -125,12 +125,10 @@
 
 .cu-stat-value {
   font-size: 38px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
   color: var(--ink);
 }
-
-/* stat value when it contains a percentage -> #36415A */
 .cu-stat-value .cu-pct,
 .cu-stat-value.pct {
   color: var(--pct);

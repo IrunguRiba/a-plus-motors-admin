@@ -14,8 +14,8 @@
   --amber: #b45309;
   --amber-soft: #fdf0e1;
   --red: #c62828;
-  --down: #ff0000;            /* down / negative */
-  --pct: #36415a;             /* percentage colour */
+  --down: #ff0000;            
+  --pct: #36415a;             
   --on-accent: #f9f5f6;
   font-family: var(--font-main, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
   color: var(--ink);
