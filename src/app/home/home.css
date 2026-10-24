@@ -297,6 +297,20 @@
   border-color: var(--green);
   background-color: var(--green-soft);
 }
+.esc-img {
+  height: 22px;
+  width: 22px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 5px;
+}
+
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  gap: 4px;
+}
 
 /* ---------- keyboard shortcut ---------- */
 kbd {

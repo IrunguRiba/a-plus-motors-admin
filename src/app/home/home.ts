@@ -9,6 +9,11 @@ import { Search } from '../home/search/search';
   styleUrl: './home.css',
 })
 export class Home {
+  newPage='new-tab.png';
+  terms='information.png';
+  help='question.png';
+  setting='settings.png';
+  privacy='shield.png'
   private readonly router = inject(Router);
 
   readonly searchComp = viewChild.required(Search);

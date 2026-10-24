@@ -115,6 +115,8 @@
   height: 16px;
   object-fit: contain;
   display: block;
+  /* make icon white */
+  filter: brightness(0) invert(1);
 }
 
 .cs-caret {
