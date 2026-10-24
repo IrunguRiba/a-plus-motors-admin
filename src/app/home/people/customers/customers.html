@@ -67,8 +67,8 @@
               <thead>
                 <tr>
                   <th>Customer</th>
-                  <th>First saw us on</th>
-                  <th>Interested in</th>
+                  <th>Source</th>
+                  <th>Interest</th>
                   <th>Budget (KES)</th>
                   <th>Stage</th>
                   <th>Last touch</th>
@@ -129,7 +129,7 @@
             </label>
             <label class="cu-input" [class.invalid]="phoneError()">
               <span class="cu-label">Phone</span>
-              <span class="cu-internal">Internal</span>
+           
               <input type="tel" inputmode="numeric" placeholder="07__ ___ ___" [value]="formPhone()" (input)="onPhone($event)" />
               @if (phoneError()) {
                 <small>{{ phoneError() }}</small>

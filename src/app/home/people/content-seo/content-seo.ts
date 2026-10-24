@@ -36,6 +36,10 @@ interface Trend {
   styleUrl: './content-seo.css',
 })
 export class ContentSeo {
+  trending = 'trend.png';
+  done = 'checkmark.png';
+  add = 'plus.png';
+
   readonly periods = [
     { key: 7, label: 'Last 7 days' },
     { key: 30, label: 'Last 30 days' },
@@ -192,6 +196,12 @@ export class ContentSeo {
       return result * dir;
     });
   });
+
+  readonly draftedTrendIds = computed(() => new Set(this.posts().map(p => p.id)));
+
+  draftedTrend(id: string): boolean {
+    return this.draftedTrendIds().has(id);
+  }
 
   togglePeriodMenu(): void {
     this.periodOpen.update(open => !open);

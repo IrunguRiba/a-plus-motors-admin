@@ -1,319 +1,327 @@
 <div class="social-hub-container">
-    <main class="page">
-      <!-- Page header -->
-      <section class="page-head">
-        <div class="page-head__text">
-          <h1 class="page-title">Social Hub</h1>
-          <p class="page-sub">What your channels, website and showroom say about who buys. Social data is joined with walk-in records.</p>
-        </div>
-        <div class="page-head__actions">
-          <div class="range">
-            <button
-              type="button"
-              class="btn btn--outline"
-              aria-haspopup="listbox"
-              [attr.aria-expanded]="rangeOpen()"
-              (click)="toggleRange()"
-            >
-              {{ currentRange().label }} <span class="caret" aria-hidden="true"></span>
-            </button>
-            @if (rangeOpen()) {
-              <ul class="menu" role="listbox" aria-label="Date range">
-                @for (r of ranges; track r.key) {
-                  <li role="option" [attr.aria-selected]="r.key === range()">
-                    <button
-                      type="button"
-                      class="menu__item"
-                      [class.is-selected]="r.key === range()"
-                      (click)="setRange(r.key)"
-                    >
-                      {{ r.label }}
-                    </button>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-          <button type="button" class="btn btn--primary" (click)="openConnect()">+ Connect channel</button>
-        </div>
-      </section>
-  
-      <!-- KPIs -->
-      <section class="kpis" aria-label="Key numbers">
-        @for (kpi of kpis(); track kpi.label) {
-          <article class="kpi" [class.kpi--highlight]="kpi.highlight">
-            <h2 class="kpi__label">{{ kpi.label }}</h2>
-            <p class="kpi__value">{{ kpi.value }}</p>
-            <p class="kpi__note" [class.kpi__note--positive]="kpi.positive">{{ kpi.note }}</p>
-          </article>
-        }
-      </section>
-  
-      <div class="layout">
-        <!-- Left column -->
-        <div class="col col--main">
-          <!-- Channel performance -->
-          <section class="card">
-            <header class="card__head">
-              <h2 class="card__title">Channel performance</h2>
-              <span class="card__hint">Live from each platform API · click a channel to filter content</span>
-            </header>
-            <div class="table-wrap">
-              <table class="table table--channels">
-                <thead>
-                  <tr>
-                    <th>Channel</th>
-                    <th [attr.aria-sort]="ariaSort(channelSort(), 'followers')">
-                      <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'followers'" (click)="sortChannels('followers')">
-                        Followers <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'followers') }}</span>
-                      </button>
-                    </th>
-                    <th [attr.aria-sort]="ariaSort(channelSort(), 'reach')">
-                      <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'reach'" (click)="sortChannels('reach')">
-                        Reach <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'reach') }}</span>
-                      </button>
-                    </th>
-                    <th [attr.aria-sort]="ariaSort(channelSort(), 'engRate')">
-                      <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'engRate'" (click)="sortChannels('engRate')">
-                        Eng. rate <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'engRate') }}</span>
-                      </button>
-                    </th>
-                    <th [attr.aria-sort]="ariaSort(channelSort(), 'enquiries')">
-                      <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'enquiries'" (click)="sortChannels('enquiries')">
-                        Enquiries <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'enquiries') }}</span>
-                      </button>
-                    </th>
-                    <th [attr.aria-sort]="ariaSort(channelSort(), 'sold')">
-                      <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'sold'" (click)="sortChannels('sold')">
-                        Sold <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'sold') }}</span>
-                      </button>
-                    </th>
-                    <th>Last sync</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (c of channelRows(); track c.name) {
-                    <tr
-                      [class.is-clickable]="c.kind === 'social'"
-                      [class.is-selected]="activeChannel() === c.name"
-                      [attr.tabindex]="c.kind === 'social' ? 0 : null"
-                      [attr.aria-pressed]="c.kind === 'social' ? activeChannel() === c.name : null"
-                      (click)="toggleChannel(c)"
-                      (keydown.enter)="toggleChannel(c)"
-                    >
-                      <td class="cell-channel">
-                        <span class="dot" [style.background]="c.color"></span>{{ c.name }}
-                      </td>
-                      <td>{{ c.followersText }}</td>
-                      <td class="strong">{{ c.reachText }}</td>
-                      <td>{{ c.rateText }}</td>
-                      <td>{{ c.enquiriesText }}</td>
-                      <td class="strong">{{ c.soldText }}</td>
-                      <td class="muted">{{ c.lastSync }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </section>
-  
-          <!-- Funnel -->
-          <section class="card">
-            <header class="card__head">
-              <h2 class="card__title">From view to sale</h2>
-              <span class="card__hint">Social + showroom joined · bars show stage, not scale</span>
-            </header>
-            <ul class="funnel">
-              @for (s of funnel(); track s.label) {
-                <li class="funnel__row">
-                  <span class="funnel__label">{{ s.label }}</span>
-                  <span class="funnel__track">
-                    <span class="funnel__bar" [style.width.%]="s.width"></span>
-                  </span>
-                  <span class="funnel__value">{{ s.value }}</span>
-                  <span class="funnel__note">{{ s.note }}</span>
-                </li>
-              }
-            </ul>
-          </section>
-  
-          <!-- Top content -->
-          <section class="card">
-            <header class="card__head">
-              <h2 class="card__title">Top content · {{ currentRange().days }} days</h2>
-              @if (activeChannel(); as channel) {
-                <button type="button" class="chip" (click)="clearChannel()" [attr.aria-label]="'Clear ' + channel + ' filter'">
-                  {{ channel }} <span aria-hidden="true">✕</span>
-                </button>
-              } @else {
-                <span class="card__hint">Ranked by enquiries generated</span>
-              }
-            </header>
-            <div class="table-wrap">
-              <table class="table table--posts">
-                <thead>
-                  <tr>
-                    <th>Post</th>
-                    <th>Platform</th>
-                    <th>Car</th>
-                    <th [attr.aria-sort]="ariaSort(postSort(), 'views')">
-                      <button type="button" class="th-btn" [class.is-sorted]="postSort().key === 'views'" (click)="sortPosts('views')">
-                        Views <span class="sort" aria-hidden="true">{{ sortIndicator(postSort(), 'views') }}</span>
-                      </button>
-                    </th>
-                    <th [attr.aria-sort]="ariaSort(postSort(), 'eng')">
-                      <button type="button" class="th-btn" [class.is-sorted]="postSort().key === 'eng'" (click)="sortPosts('eng')">
-                        Eng. <span class="sort" aria-hidden="true">{{ sortIndicator(postSort(), 'eng') }}</span>
-                      </button>
-                    </th>
-                    <th [attr.aria-sort]="ariaSort(postSort(), 'enq')">
-                      <button type="button" class="th-btn" [class.is-sorted]="postSort().key === 'enq'" (click)="sortPosts('enq')">
-                        Enq. <span class="sort" aria-hidden="true">{{ sortIndicator(postSort(), 'enq') }}</span>
-                      </button>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (p of postRows(); track p.title) {
-                    <tr>
-                      <td class="strong post-title">{{ p.title }}</td>
-                      <td>{{ p.platformLabel }}</td>
-                      <td class="muted">{{ p.car }}</td>
-                      <td>{{ p.viewsText }}</td>
-                      <td>{{ p.engText }}</td>
-                      <td class="strong">{{ p.enq }}</td>
-                    </tr>
-                  } @empty {
-                    <tr class="empty-row">
-                      <td colspan="6">No top content for this channel yet.</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-  
-        <!-- Right column -->
-        <aside class="col col--side">
-          <!-- Do this next -->
-          <section class="card card--next">
-            <h2 class="next__title"><span aria-hidden="true">✦</span> Do this next</h2>
-            <p class="next__sub">From engagement, stock age and walk-ins</p>
-            @for (s of suggestions; track s.title) {
-              <article class="suggestion" [class.is-planned]="isPlanned(s.title)">
-                <span class="tag" [attr.data-tone]="s.tone">{{ s.tag }}</span>
-                <h3 class="suggestion__title">{{ s.title }}</h3>
-                <p class="suggestion__text">{{ s.text }}</p>
-                <div class="suggestion__foot">
-                  <span class="suggestion__meta">{{ s.meta }}</span>
-                  <button
-                    type="button"
-                    class="btn btn--primary btn--sm"
-                    [class.btn--planned]="isPlanned(s.title)"
-                    [attr.aria-pressed]="isPlanned(s.title)"
-                    (click)="plan(s)"
-                  >
-                    {{ isPlanned(s.title) ? 'Planned ✓' : 'Plan it' }}
-                  </button>
-                </div>
-              </article>
-            }
-          </section>
-  
-          <!-- Connected sources -->
-          <section class="card card--sources">
-            <header class="sources__head">
-              <h2 class="card__title">Connected sources</h2>
-              @if (attentionCount() > 0) {
-                <span class="badge-attn">{{ attentionCount() }} needs attention</span>
-              }
-            </header>
-            <ul class="sources">
-              @for (src of sources(); track src.name) {
-                <li class="source">
-                  <span class="source__icon" [class.source__icon--warn]="!src.ok" aria-hidden="true">
-                    @if (src.ok) { ✓ } @else { ! }
-                  </span>
-                  <div class="source__text">
-                    <span class="source__name">{{ src.name }}</span>
-                    <span class="source__detail">{{ src.detail }}</span>
-                  </div>
-                  @if (!src.ok) {
-                    <button type="button" class="btn btn--amber btn--sm source__action" (click)="reconnect(src.name)">Reconnect</button>
-                  }
-                </li>
-              }
-            </ul>
-          </section>
-  
-          <!-- Who is buying -->
-          <section class="card card--buying">
-            <h2 class="card__title">Who is buying · Social + walk-in</h2>
-            <p class="buying__text">
-              Buyers aged 25–40 make up most closed deals. Most come from Nairobi, Kiambu and Kajiado, and most first saw a car on YouTube or TikTok before visiting the yard.
-            </p>
-            <button type="button" class="btn btn--outline btn--sm" (click)="goToCustomers()">Open customers</button>
-          </section>
-        </aside>
+  <main class="page">
+    <!-- Page header -->
+    <section class="page-head">
+      <div class="page-head__text">
+        <h1 class="page-title">Social Hub</h1>
+        <p class="page-sub">What your channels, website and showroom say about who buys. Social data is joined with walk-in records.</p>
       </div>
-    </main>
-  
-    <!-- Connect channel dialog -->
-    @if (connectOpen()) {
-      <div class="modal-backdrop" (click)="closeConnect()">
-        <div
-          class="modal"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="connect-title"
-          (click)="$event.stopPropagation()"
-        >
-          <h2 id="connect-title" class="card__title">Connect a channel</h2>
-          <p class="modal__sub">Choose a channel to start pulling its reach, engagement and enquiries into the Social Hub.</p>
-  
-          @if (availableOptions().length) {
-            <ul class="options">
-              @for (o of availableOptions(); track o.id) {
-                <li>
+      <div class="page-head__actions">
+        <div class="range">
+          <button
+            type="button"
+            class="btn btn--outline"
+            aria-haspopup="listbox"
+            [attr.aria-expanded]="rangeOpen()"
+            (click)="toggleRange()"
+          >
+            {{ currentRange().label }} <span class="caret" aria-hidden="true"></span>
+          </button>
+          @if (rangeOpen()) {
+            <ul class="menu" role="listbox" aria-label="Date range">
+              @for (r of ranges; track r.key) {
+                <li role="option" [attr.aria-selected]="r.key === range()">
                   <button
                     type="button"
-                    class="option"
-                    [class.is-selected]="selectedOption() === o.id"
-                    [attr.aria-pressed]="selectedOption() === o.id"
-                    (click)="selectedOption.set(o.id)"
+                    class="menu__item"
+                    [class.is-selected]="r.key === range()"
+                    (click)="setRange(r.key)"
                   >
-                    <span class="dot" [style.background]="o.color"></span>
-                    <span class="option__name">{{ o.name }}</span>
-                    <span class="option__hint">{{ o.hint }}</span>
+                    {{ r.label }}
                   </button>
                 </li>
               }
             </ul>
-          } @else {
-            <p class="modal__empty">All available channels are already connected.</p>
           }
-  
-          <div class="modal__actions">
-            <button type="button" class="btn btn--outline btn--sm" (click)="closeConnect()">Cancel</button>
-            <button
-              type="button"
-              class="btn btn--primary btn--sm"
-              [disabled]="!selectedOption()"
-              (click)="connectSelected()"
-            >
-              Connect
-            </button>
+        </div>
+        <button type="button" class="btn btn--primary" (click)="openConnect()">+ Connect channel</button>
+      </div>
+    </section>
+
+    <!-- KPIs -->
+    <section class="kpis" aria-label="Key numbers">
+      @for (kpi of kpis(); track kpi.label) {
+        <article class="kpi" [class.kpi--highlight]="kpi.highlight">
+          <h2 class="kpi__label">{{ kpi.label }}</h2>
+          <p class="kpi__value">{{ kpi.value }}</p>
+          <p class="kpi__note" [class.kpi__note--positive]="kpi.positive">{{ kpi.note }}</p>
+        </article>
+      }
+    </section>
+
+    <div class="layout">
+      <!-- Left column -->
+      <div class="col col--main">
+        <!-- Channel performance -->
+        <section class="card">
+          <header class="card__head">
+            <h2 class="card__title">Channel performance</h2>
+            <span class="card__hint">Live from each platform API · click a channel to filter content</span>
+          </header>
+          <div class="table-wrap">
+            <table class="table table--channels">
+              <thead>
+                <tr>
+                  <th>Channel</th>
+                  <th [attr.aria-sort]="ariaSort(channelSort(), 'followers')">
+                    <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'followers'" (click)="sortChannels('followers')">
+                      Followers <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'followers') }}</span>
+                    </button>
+                  </th>
+                  <th [attr.aria-sort]="ariaSort(channelSort(), 'reach')">
+                    <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'reach'" (click)="sortChannels('reach')">
+                      Reach <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'reach') }}</span>
+                    </button>
+                  </th>
+                  <th [attr.aria-sort]="ariaSort(channelSort(), 'engRate')">
+                    <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'engRate'" (click)="sortChannels('engRate')">
+                      Eng. rate <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'engRate') }}</span>
+                    </button>
+                  </th>
+                  <th [attr.aria-sort]="ariaSort(channelSort(), 'enquiries')">
+                    <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'enquiries'" (click)="sortChannels('enquiries')">
+                      Enquiries <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'enquiries') }}</span>
+                    </button>
+                  </th>
+                  <th [attr.aria-sort]="ariaSort(channelSort(), 'sold')">
+                    <button type="button" class="th-btn" [class.is-sorted]="channelSort()?.key === 'sold'" (click)="sortChannels('sold')">
+                      Sold <span class="sort" aria-hidden="true">{{ sortIndicator(channelSort(), 'sold') }}</span>
+                    </button>
+                  </th>
+                  <th>Last sync</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of channelRows(); track c.name) {
+                  <tr
+                    [class.is-clickable]="c.kind === 'social'"
+                    [class.is-selected]="activeChannel() === c.name"
+                    [attr.tabindex]="c.kind === 'social' ? 0 : null"
+                    [attr.aria-pressed]="c.kind === 'social' ? activeChannel() === c.name : null"
+                    (click)="toggleChannel(c)"
+                    (keydown.enter)="toggleChannel(c)"
+                  >
+                    <td class="cell-channel">
+                      <span class="dot" [style.background]="c.color"></span>{{ c.name }}
+                    </td>
+                    <td>{{ c.followersText }}</td>
+                    <td class="strong">{{ c.reachText }}</td>
+                    <td>{{ c.rateText }}</td>
+                    <td>{{ c.enquiriesText }}</td>
+                    <td class="strong">{{ c.soldText }}</td>
+                    <td class="muted">{{ c.lastSync }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
+        </section>
+
+        <!-- Funnel -->
+        <section class="card">
+          <header class="card__head">
+            <h2 class="card__title">From view to sale</h2>
+            <span class="card__hint">Social + showroom joined · bars show stage, not scale</span>
+          </header>
+          <ul class="funnel">
+            @for (s of funnel(); track s.label) {
+              <li class="funnel__row">
+                <span class="funnel__label">{{ s.label }}</span>
+                <span class="funnel__track">
+                  <span class="funnel__bar" [style.width.%]="s.width"></span>
+                </span>
+                <span class="funnel__value">{{ s.value }}</span>
+                <span class="funnel__note">{{ s.note }}</span>
+              </li>
+            }
+          </ul>
+        </section>
+
+        <!-- Top content -->
+        <section class="card">
+          <header class="card__head">
+            <h2 class="card__title">Top content · {{ currentRange().days }} days</h2>
+            @if (activeChannel(); as channel) {
+              <button type="button" class="chip" (click)="clearChannel()" [attr.aria-label]="'Clear ' + channel + ' filter'">
+                {{ channel }} <span aria-hidden="true">✕</span>
+              </button>
+            } @else {
+              <span class="card__hint">Ranked by enquiries generated</span>
+            }
+          </header>
+          <div class="table-wrap">
+            <table class="table table--posts">
+              <thead>
+                <tr>
+                  <th>Post</th>
+                  <th>Platform</th>
+                  <th>Car</th>
+                  <th [attr.aria-sort]="ariaSort(postSort(), 'views')">
+                    <button type="button" class="th-btn" [class.is-sorted]="postSort().key === 'views'" (click)="sortPosts('views')">
+                      Views <span class="sort" aria-hidden="true">{{ sortIndicator(postSort(), 'views') }}</span>
+                    </button>
+                  </th>
+                  <th [attr.aria-sort]="ariaSort(postSort(), 'eng')">
+                    <button type="button" class="th-btn" [class.is-sorted]="postSort().key === 'eng'" (click)="sortPosts('eng')">
+                      Eng. <span class="sort" aria-hidden="true">{{ sortIndicator(postSort(), 'eng') }}</span>
+                    </button>
+                  </th>
+                  <th [attr.aria-sort]="ariaSort(postSort(), 'enq')">
+                    <button type="button" class="th-btn" [class.is-sorted]="postSort().key === 'enq'" (click)="sortPosts('enq')">
+                      Enq. <span class="sort" aria-hidden="true">{{ sortIndicator(postSort(), 'enq') }}</span>
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of postRows(); track p.title) {
+                  <tr>
+                    <td class="strong post-title">{{ p.title }}</td>
+                    <td>{{ p.platformLabel }}</td>
+                    <td class="muted">{{ p.car }}</td>
+                    <td>{{ p.viewsText }}</td>
+                    <td>{{ p.engText }}</td>
+                    <td class="strong">{{ p.enq }}</td>
+                  </tr>
+                } @empty {
+                  <tr class="empty-row">
+                    <td colspan="6">No top content for this channel yet.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right column -->
+      <aside class="col col--side">
+        <!-- Do this next -->
+        <section class="card card--next">
+          <h2 class="next__title"><span aria-hidden="true">✦</span> Do this next</h2>
+          <p class="next__sub">From engagement, stock age and walk-ins</p>
+          @for (s of suggestions; track s.title) {
+            <article class="suggestion" [class.is-planned]="isPlanned(s.title)">
+              <span class="tag" [attr.data-tone]="s.tone">{{ s.tag }}</span>
+              <h3 class="suggestion__title">{{ s.title }}</h3>
+              <p class="suggestion__text">{{ s.text }}</p>
+              <div class="suggestion__foot">
+                <span class="suggestion__meta">{{ s.meta }}</span>
+                <button
+                  type="button"
+                  class="btn btn--primary btn--sm btn--icon"
+                  [class.btn--planned]="isPlanned(s.title)"
+                  [attr.aria-pressed]="isPlanned(s.title)"
+                  (click)="plan(s)"
+                >
+                  <img class="btn__icon" [src]="isPlanned(s.title) ? done : add" alt="" aria-hidden="true" />
+                  {{ isPlanned(s.title) ? 'Planned' : 'Plan it' }}
+                </button>
+              </div>
+            </article>
+          }
+        </section>
+
+        <!-- Connected sources -->
+        <section class="card card--sources">
+          <header class="sources__head">
+            <h2 class="card__title">Connected sources</h2>
+            @if (attentionCount() > 0) {
+              <span class="badge-attn">{{ attentionCount() }} needs attention</span>
+            }
+          </header>
+          <ul class="sources">
+            @for (src of sources(); track src.name) {
+              <li class="source">
+                <span class="source__icon" [class.source__icon--warn]="!src.ok" aria-hidden="true">
+                  @if (src.ok) {
+                    <img class="source__icon-img" [src]="done" alt="" />
+                  } @else {
+                    !
+                  }
+                </span>
+                <div class="source__text">
+                  <span class="source__name">{{ src.name }}</span>
+                  <span class="source__detail">{{ src.detail }}</span>
+                </div>
+                @if (!src.ok) {
+                  <button type="button" class="btn btn--amber btn--sm source__action" (click)="reconnect(src.name)">Reconnect</button>
+                }
+              </li>
+            }
+          </ul>
+        </section>
+
+        <!-- Who is buying -->
+        <section class="card card--buying">
+          <h2 class="card__title">Who is buying · Social + walk-in</h2>
+          <p class="buying__text">
+            Buyers aged 25–40 make up most closed deals. Most come from Nairobi, Kiambu and Kajiado, and most first saw a car on YouTube or TikTok before visiting the yard.
+          </p>
+          <button type="button" class="btn btn--outline btn--sm" (click)="goToCustomers()">Open customers</button>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Connect channel dialog -->
+  @if (connectOpen()) {
+    <div class="modal-backdrop" (click)="closeConnect()">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="connect-title"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="connect-title" class="card__title">Connect a channel</h2>
+        <p class="modal__sub">Choose a channel to start pulling its reach, engagement and enquiries into the Social Hub.</p>
+
+        @if (availableOptions().length) {
+          <ul class="options">
+            @for (o of availableOptions(); track o.id) {
+              <li>
+                <button
+                  type="button"
+                  class="option"
+                  [class.is-selected]="selectedOption() === o.id"
+                  [attr.aria-pressed]="selectedOption() === o.id"
+                  (click)="selectedOption.set(o.id)"
+                >
+                  <span class="dot" [style.background]="o.color"></span>
+                  <span class="option__name">{{ o.name }}</span>
+                  @if (o.attention) {
+                    <span class="badge-attn option__badge">Action required</span>
+                  }
+                  <span class="option__hint">{{ o.hint }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="modal__empty">All available channels are already connected.</p>
+        }
+
+        <div class="modal__actions">
+          <button type="button" class="btn btn--outline btn--sm" (click)="closeConnect()">Cancel</button>
+          <button
+            type="button"
+            class="btn btn--primary btn--sm"
+            [disabled]="!selectedOption()"
+            (click)="connectSelected()"
+          >
+            Connect
+          </button>
         </div>
       </div>
-    }
-  
-    <!-- Toast -->
-    @if (toast(); as message) {
-      <div class="toast" role="status" aria-live="polite">
-        <span>{{ message }}</span>
-        <button type="button" class="toast__close" aria-label="Dismiss" (click)="dismissToast()">✕</button>
-      </div>
-    }
-  </div>
+    </div>
+  }
+
+  <!-- Toast -->
+  @if (toast(); as message) {
+    <div class="toast" role="status" aria-live="polite">
+      <span>{{ message }}</span>
+      <button type="button" class="toast__close" aria-label="Dismiss" (click)="dismissToast()">✕</button>
+    </div>
+  }
+</div>

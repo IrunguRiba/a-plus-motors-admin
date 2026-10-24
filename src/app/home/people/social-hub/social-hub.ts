@@ -80,6 +80,7 @@ interface Suggestion {
   title: string;
   text: string;
   meta: string;
+  
 }
 
 interface Source {
@@ -93,6 +94,7 @@ interface ChannelOption {
   name: string;
   color: string;
   hint: string;
+  attention?: boolean;
 }
 
 const AVG_SALE_KES = 3_467_000;
@@ -104,6 +106,8 @@ const AVG_SALE_KES = 3_467_000;
   styleUrl: './social-hub.css',
 })
 export class SocialHub {
+  done = 'checkmark.png';
+  add = 'plus.png';
   /** Fires when the user clicks "Open customers" so the parent can navigate. */
   readonly openCustomers = output<void>();
   /** Fires with the suggestion title when the user plans a piece of content. */

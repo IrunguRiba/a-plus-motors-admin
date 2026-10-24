@@ -1,197 +1,200 @@
 <div class="content-seo-container">
-    <header class="cs-head">
-      <div>
-        <h1 class="cs-title">Content &amp; SEO</h1>
-        <p class="cs-lede">Website traffic, search performance, and blog posts drafted from what is trending on your channels.</p>
-      </div>
-      <div class="cs-actions">
-        <div class="cs-period">
-          <button type="button" class="cs-btn cs-btn-outline" [attr.aria-expanded]="periodOpen()" (click)="togglePeriodMenu()">
-            {{ period().label }} <span class="cs-caret"></span>
-          </button>
-          @if (periodOpen()) {
-            <ul class="cs-menu">
-              @for (p of periods; track p.key) {
-                <li><button type="button" [class.active]="p.key === period().key" (click)="selectPeriod(p)">{{ p.label }}</button></li>
-              }
-            </ul>
-          }
-        </div>
-        <button type="button" class="cs-btn cs-btn-primary" (click)="newPost()">+ New blog post</button>
-      </div>
-    </header>
-  
-    <div class="cs-stats">
-      @for (s of stats; track s.label) {
-        <div class="cs-stat" [class.hl]="s.highlight">
-          <span class="cs-stat-label">{{ s.label }}</span>
-          <strong class="cs-stat-value">{{ s.value }}</strong>
-          <span class="cs-stat-note" [class.up]="s.trend === 'up'">@if (s.trend !== 'none') {▲ }{{ s.note }}</span>
-        </div>
-      }
+  <header class="cs-head">
+    <div>
+      <h1 class="cs-title">Content &amp; SEO</h1>
+      <p class="cs-lede">Website traffic, search performance, and blog posts drafted from what is trending on your channels.</p>
     </div>
-  
-    <div class="cs-layout">
-      <div class="cs-col">
-        <section class="cs-card">
-          <div class="cs-card-head">
-            <h2>Where visitors come from</h2>
-            <span>Google Analytics 4 · includes social referrals</span>
-          </div>
-          <ul class="cs-sources">
-            @for (s of sources; track s.name) {
-              <li>
-                <span class="cs-source-name">{{ s.name }}</span>
-                <span class="cs-track"><span class="cs-fill" [style.width.%]="s.width" [style.background]="s.color"></span></span>
-                <b>{{ s.visits }}K</b>
-                <em>{{ s.share }}%</em>
-              </li>
+    <div class="cs-actions">
+      <div class="cs-period">
+        <button type="button" class="cs-btn cs-btn-outline" [attr.aria-expanded]="periodOpen()" (click)="togglePeriodMenu()">
+          {{ period().label }} <span class="cs-caret"></span>
+        </button>
+        @if (periodOpen()) {
+          <ul class="cs-menu">
+            @for (p of periods; track p.key) {
+              <li><button type="button" [class.active]="p.key === period().key" (click)="selectPeriod(p)">{{ p.label }}</button></li>
             }
           </ul>
-        </section>
-  
-        <section class="cs-card">
-          <div class="cs-card-head">
-            <h2>Search keywords</h2>
-            <span>Google Search Console · Kenya</span>
-          </div>
-          <div class="cs-scroll">
-            <table class="cs-table">
-              <thead>
-                <tr>
-                  <th><button type="button" class="cs-sort" (click)="sortBy('keyword')">Keyword {{ arrow('keyword') }}</button></th>
-                  <th><button type="button" class="cs-sort" (click)="sortBy('position')">Position {{ arrow('position') }}</button></th>
-                  <th>Change</th>
-                  <th><button type="button" class="cs-sort" (click)="sortBy('searches')">Searches / mo {{ arrow('searches') }}</button></th>
-                  <th><button type="button" class="cs-sort" (click)="sortBy('clicks')">Clicks {{ arrow('clicks') }}</button></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (k of sortedKeywords(); track k.keyword) {
-                  <tr>
-                    <td><strong>{{ k.keyword }}</strong></td>
-                    <td>#{{ k.position }}</td>
-                    <td>
-                      @if (k.change > 0) {
-                        <span class="cs-up">▲ {{ k.change }}</span>
-                      } @else if (k.change < 0) {
-                        <span class="cs-down">▼ {{ -k.change }}</span>
-                      } @else {
-                        <span class="cs-flat">—</span>
-                      }
-                    </td>
-                    <td>{{ k.searches.toLocaleString('en-US') }}</td>
-                    <td><strong>{{ k.clicks }}</strong></td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </section>
-  
-        <section class="cs-card">
-          <div class="cs-card-head">
-            <h2>Draft · {{ active().name }}</h2>
-            <span class="cs-status" [attr.data-stage]="active().stage">{{ statusLabel() }}</span>
-          </div>
-          <div class="cs-draft-body">
-            <div class="cs-draft-left">
-              <label class="cs-label" for="cs-post-title">Title</label>
-              <textarea id="cs-post-title" class="cs-title-input" rows="2" placeholder="Write a title with your main keyword" [value]="active().title" [readOnly]="locked()" (input)="onTitle($event)"></textarea>
-              <label class="cs-label" for="cs-post-outline">Outline (drafted from trend data)</label>
-              <textarea id="cs-post-outline" class="cs-outline" rows="6" [value]="active().outline" [readOnly]="locked()" (input)="onOutline($event)"></textarea>
-              <p class="cs-note">{{ active().note }}</p>
-            </div>
-            <div class="cs-draft-right">
-              <div class="cs-score">
-                <span>SEO score</span>
-                <strong>{{ score() }}</strong>
-                <small>/ 100</small>
-              </div>
-              <ul class="cs-checks">
-                @for (c of checks(); track c.key) {
-                  <li>
-                    <button type="button" class="cs-check" [class.done]="c.done" [disabled]="locked() || c.auto" (click)="toggleCheck(c.key)">
-                      <span class="cs-mark">{{ c.done ? '✓' : '!' }}</span>
-                      {{ c.label }}
-                    </button>
-                  </li>
-                }
-              </ul>
-            </div>
-          </div>
-          <div class="cs-draft-actions">
-            <button type="button" class="cs-btn cs-btn-outline" [disabled]="locked()" (click)="saveDraft()">Save draft</button>
-            <button type="button" class="cs-btn cs-btn-primary" [disabled]="locked() || active().stage === 'review'" (click)="submitForReview()">Submit for review</button>
-          </div>
-        </section>
+        }
       </div>
-  
-      <div class="cs-col">
-        <section class="cs-trending">
-          <h2><span>✦</span> Trending · Turn into a blog</h2>
-          <p>Pulled from search, video comments and platform reports</p>
-          @for (t of trends; track t.id) {
-            <article class="cs-trend">
-              <span class="cs-tag" [attr.data-tone]="t.tone">{{ t.tag }}</span>
-              <h3>{{ t.title }}</h3>
-              <p>{{ t.body }}</p>
-              <button type="button" class="cs-btn cs-btn-primary cs-btn-small" (click)="draftFromTrend(t)">Draft post</button>
-            </article>
-          }
-        </section>
-  
-        <section class="cs-card cs-side">
-          <h2>Blog pipeline</h2>
-          <div class="cs-stages">
-            @for (s of stages; track s.key; let last = $last) {
-              <button type="button" class="cs-stage" [class.active]="isStageActive(s.key)" (click)="setStageFilter(s.key)">{{ s.label }}</button>
-              @if (!last) {
-                <span class="cs-arrow">→</span>
-              }
-            }
-          </div>
-          <ul class="cs-posts">
-            @for (p of visiblePosts(); track p.id) {
-              <li>
-                <button type="button" [class.current]="p.id === active().id" (click)="openPost(p.id)">
-                  <span class="cs-post-text">
-                    <strong>{{ p.name }}</strong>
-                    <small>{{ p.sub }}</small>
-                  </span>
-                  <span class="cs-pill" [attr.data-stage]="p.stage">{{ p.stage === 'review' ? 'In review' : p.stage }}</span>
-                </button>
-              </li>
-            } @empty {
-              <li class="cs-none">No posts at this stage.</li>
-            }
-          </ul>
-          <div class="cs-auto">
-            <button type="button" class="cs-switch" role="switch" [attr.aria-checked]="autoDraft()" [class.on]="autoDraft()" (click)="toggleAutoDraft()"><span></span></button>
-            <p>Auto-draft posts from trends. Nothing is published without your approval.</p>
-          </div>
-        </section>
-  
-        <section class="cs-card cs-side">
-          <h2>This week</h2>
-          <ul class="cs-week">
-            @for (w of week; track w.day) {
-              <li>
-                <b>{{ w.day }}</b>
-                <span>{{ w.task }}</span>
-                <em>{{ w.channel }}</em>
-              </li>
-            }
-          </ul>
-        </section>
-      </div>
+      <button type="button" class="cs-btn cs-btn-primary" (click)="newPost()">+ New blog post</button>
     </div>
-  
-    <footer class="cs-brand">
+  </header>
 
-    </footer>
-  
-    @if (toast(); as message) {
-      <div class="cs-toast" role="status" aria-live="polite">{{ message }}</div>
+  <div class="cs-stats">
+    @for (s of stats; track s.label) {
+      <div class="cs-stat" [class.hl]="s.highlight">
+        <span class="cs-stat-label">{{ s.label }}</span>
+        <strong class="cs-stat-value">{{ s.value }}</strong>
+        <span class="cs-stat-note" [class.up]="s.trend === 'up'">@if (s.trend !== 'none') {▲ }{{ s.note }}</span>
+      </div>
     }
   </div>
+
+  <div class="cs-layout">
+    <div class="cs-col">
+      <section class="cs-card">
+        <div class="cs-card-head">
+          <h2>Where visitors come from</h2>
+          <span>Google Analytics 4 · includes social referrals</span>
+        </div>
+        <ul class="cs-sources">
+          @for (s of sources; track s.name) {
+            <li>
+              <span class="cs-source-name">{{ s.name }}</span>
+              <span class="cs-track"><span class="cs-fill" [style.width.%]="s.width" [style.background]="s.color"></span></span>
+              <b>{{ s.visits }}K</b>
+              <em>{{ s.share }}%</em>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section class="cs-card">
+        <div class="cs-card-head">
+          <h2>Search keywords</h2>
+          <span>Google Search Console · Kenya</span>
+        </div>
+        <div class="cs-scroll">
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th><button type="button" class="cs-sort" (click)="sortBy('keyword')">Keyword {{ arrow('keyword') }}</button></th>
+                <th><button type="button" class="cs-sort" (click)="sortBy('position')">Position {{ arrow('position') }}</button></th>
+                <th>Change</th>
+                <th><button type="button" class="cs-sort" (click)="sortBy('searches')">Searches / mo {{ arrow('searches') }}</button></th>
+                <th><button type="button" class="cs-sort" (click)="sortBy('clicks')">Clicks {{ arrow('clicks') }}</button></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (k of sortedKeywords(); track k.keyword) {
+                <tr>
+                  <td><strong>{{ k.keyword }}</strong></td>
+                  <td>#{{ k.position }}</td>
+                  <td>
+                    @if (k.change > 0) {
+                      <span class="cs-up">▲ {{ k.change }}</span>
+                    } @else if (k.change < 0) {
+                      <span class="cs-down">▼ {{ -k.change }}</span>
+                    } @else {
+                      <span class="cs-flat">—</span>
+                    }
+                  </td>
+                  <td>{{ k.searches.toLocaleString('en-US') }}</td>
+                  <td><strong>{{ k.clicks }}</strong></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="cs-card">
+        <div class="cs-card-head">
+          <h2>Draft · {{ active().name }}</h2>
+          <span class="cs-status" [attr.data-stage]="active().stage">{{ statusLabel() }}</span>
+        </div>
+        <div class="cs-draft-body">
+          <div class="cs-draft-left">
+            <label class="cs-label" for="cs-post-title">Title</label>
+            <textarea id="cs-post-title" class="cs-title-input" rows="2" placeholder="Write a title with your main keyword" [value]="active().title" [readOnly]="locked()" (input)="onTitle($event)"></textarea>
+            <label class="cs-label" for="cs-post-outline">Outline (drafted from trend data)</label>
+            <textarea id="cs-post-outline" class="cs-outline" rows="6" [value]="active().outline" [readOnly]="locked()" (input)="onOutline($event)"></textarea>
+            <p class="cs-note">{{ active().note }}</p>
+          </div>
+          <div class="cs-draft-right">
+            <div class="cs-score">
+              <span>SEO score</span>
+              <strong>{{ score() }}</strong>
+              <small>/ 100</small>
+            </div>
+            <ul class="cs-checks">
+              @for (c of checks(); track c.key) {
+                <li>
+                  <button type="button" class="cs-check" [class.done]="c.done" [disabled]="locked() || c.auto" (click)="toggleCheck(c.key)">
+                    <span class="cs-mark">{{ c.done ? '✓' : '!' }}</span>
+                    {{ c.label }}
+                  </button>
+                </li>
+              }
+            </ul>
+          </div>
+        </div>
+        <div class="cs-draft-actions">
+          <button type="button" class="cs-btn cs-btn-outline" [disabled]="locked()" (click)="saveDraft()">Save draft</button>
+          <button type="button" class="cs-btn cs-btn-primary" [disabled]="locked() || active().stage === 'review'" (click)="submitForReview()">Submit for review</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="cs-col">
+      <section class="cs-trending">
+        <h2><img class="cs-trend-icon" [src]="trending" alt="" aria-hidden="true" /> Trending · Turn into a blog</h2>
+        <p>Pulled from search, video comments and platform reports</p>
+        @for (t of trends; track t.id) {
+          <article class="cs-trend">
+            <span class="cs-tag" [attr.data-tone]="t.tone">{{ t.tag }}</span>
+            <h3>{{ t.title }}</h3>
+            <p>{{ t.body }}</p>
+            <button type="button" class="cs-btn cs-btn-primary cs-btn-small" (click)="draftFromTrend(t)">
+              <img class="cs-btn-icon" [src]="draftedTrend(t.id) ? done : add" alt="" aria-hidden="true" />
+              {{ draftedTrend(t.id) ? 'Open post' : 'Draft post' }}
+            </button>
+          </article>
+        }
+      </section>
+
+      <section class="cs-card cs-side">
+        <h2>Blog pipeline</h2>
+        <div class="cs-stages">
+          @for (s of stages; track s.key; let last = $last) {
+            <button type="button" class="cs-stage" [class.active]="isStageActive(s.key)" (click)="setStageFilter(s.key)">{{ s.label }}</button>
+            @if (!last) {
+              <span class="cs-arrow">→</span>
+            }
+          }
+        </div>
+        <ul class="cs-posts">
+          @for (p of visiblePosts(); track p.id) {
+            <li>
+              <button type="button" [class.current]="p.id === active().id" (click)="openPost(p.id)">
+                <span class="cs-post-text">
+                  <strong>{{ p.name }}</strong>
+                  <small>{{ p.sub }}</small>
+                </span>
+                <span class="cs-pill" [attr.data-stage]="p.stage">{{ p.stage === 'review' ? 'In review' : p.stage }}</span>
+              </button>
+            </li>
+          } @empty {
+            <li class="cs-none">No posts at this stage.</li>
+          }
+        </ul>
+        <div class="cs-auto">
+          <button type="button" class="cs-switch" role="switch" [attr.aria-checked]="autoDraft()" [class.on]="autoDraft()" (click)="toggleAutoDraft()"><span></span></button>
+          <p>Auto-draft posts from trends. Nothing is published without your approval.</p>
+        </div>
+      </section>
+
+      <section class="cs-card cs-side">
+        <h2>This week</h2>
+        <ul class="cs-week">
+          @for (w of week; track w.day) {
+            <li>
+              <b>{{ w.day }}</b>
+              <span>{{ w.task }}</span>
+              <em>{{ w.channel }}</em>
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <footer class="cs-brand">
+
+  </footer>
+
+  @if (toast(); as message) {
+    <div class="cs-toast" role="status" aria-live="polite">{{ message }}</div>
+  }
+</div>
