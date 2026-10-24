@@ -158,13 +158,13 @@
 .btn--amber {
   background: var(--surface);
   color: var(--amber);
-  border: 1.5px solid var(--amber);
+  border: 1px solid var(--amber);
 }
 
 .btn--amber:hover:not(:disabled) {
   background: transparent;
-  border-color: var(--amber-line);
-  color: var(--amber-line);
+  border-color: var(--ink-soft);
+  color: var(--green-line);
 }
 
 .btn--sm {
