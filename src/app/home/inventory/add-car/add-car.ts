@@ -35,6 +35,9 @@ type VinState = 'idle' | 'decoding' | 'populate';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddCar implements OnDestroy {
+
+  done='checkmark.png'
+  add='plus.png'
   @Output() submitted = new EventEmitter<Record<string, unknown>>();
   @Output() draftSaved = new EventEmitter<Record<string, unknown>>();
 
@@ -174,7 +177,10 @@ export class AddCar implements OnDestroy {
   private now(): string {
     return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   }
-
+/** True when every control belonging to the given section is valid. */
+sectionOk(keys: (keyof typeof this.f)[]): boolean {
+  return keys.every((k) => this.f[k].valid);
+}
   /* ---------- VIN: decode → populate ---------- */
   onVinButton(): void {
     const state = this.vinState();
