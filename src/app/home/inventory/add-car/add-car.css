@@ -32,7 +32,7 @@
   -webkit-font-smoothing: antialiased;
   font-size: 16px;
   line-height: 1.5;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 *,
@@ -154,9 +154,9 @@ button {
   border-radius: 0;
   background: transparent;
   color: var(--blue);
-  border: 2px solid var(--blue);
+  border: 1px solid var(--blue);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0;
   transition:
     border-color 0.25s var(--ease),
@@ -200,9 +200,9 @@ button {
 .lbl {
   display: block;
   margin-bottom: 8px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
 }
 .lbl--ghost {
@@ -214,7 +214,7 @@ button {
   margin-left: 4px;
   padding: 2px 8px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.08em;
   line-height: 1.4;
   background: var(--surface-alt);
@@ -633,7 +633,7 @@ button {
 }
 .cap strong {
   color: var(--blue);
-  font-weight: 700;
+  font-weight: 500;
   opacity: 1;
 }
 
@@ -643,7 +643,7 @@ button {
   padding: 20px 18px 16px;
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-alt) 100%);
   border: 1.5px solid var(--line);
-  border-radius: 6px;
+  border-radius: 2px;
   transition:
     border-color 0.25s var(--ease);
 }
@@ -657,10 +657,10 @@ button {
   gap: 8px;
   margin-bottom: 10px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--blue);
+  color: var(--ink);
 }
 
 
@@ -673,7 +673,7 @@ button {
   line-height: 1.6;
   letter-spacing: 0.01em;
   resize: vertical;
-  color: var(--ink);
+  color: var(--blue);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -723,7 +723,7 @@ button {
 }
 .url-row .control {
   height: 40px;
-  font-size: 14px;
+  font-size: 12px;
   border-radius: 4px;
 }
 
