@@ -33,6 +33,7 @@
   align-items: start;
   background: var(--rp-bg);
   color: var(--rp-ink);
+  padding: 10px 20px 44px;
 }
 
 .rp-main { min-width: 0; }

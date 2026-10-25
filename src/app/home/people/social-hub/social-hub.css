@@ -1,6 +1,6 @@
 /* ============ Tokens ============ */
 :host {
-  margin-top: 10px;
+
   display: block;
   width: 100%;
   --ink: #000000;
@@ -28,6 +28,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+
 }
 
 /* ============ Reset / container ============ */
@@ -59,7 +60,7 @@
 /* ============ Page ============ */
 .page {
   width: 100%;
-  padding: 28px 24px 48px;
+  padding: 10px 10px 24px;
 }
 
 .page-head {
