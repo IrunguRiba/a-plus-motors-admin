@@ -144,17 +144,22 @@
   width: 34px;
   height: 34px;
   flex: none;
-  border-radius: 50%;
-  background-color: var(--ink);
-  color: var(--on-accent);
+  border-radius: 50%;          
   font-size: 12px;
   font-weight: 700;
+  line-height: 1;
 }
-
+.user-avatar {
+  background-color: var(--ink, #0000);
+  color: var(--on-accent, #fff);
+  -webkit-text-fill-color: var(--on-accent, #fff);
+}
 .user-avatar.large {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   font-size: 15px;
+  background-color: #000000;
+  color: #ffffff;
 }
 
 .user-meta {
