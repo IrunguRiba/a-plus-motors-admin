@@ -18,10 +18,8 @@ import {
 } from '@angular/forms';
 import { finalize, map, startWith } from 'rxjs';
 import { CarService, DecodedVin } from '../../../car-service';
+import {Doc, Photo, Notice} from '../../../interfaces/car-interface'
 
-interface Doc { label: string; file: File | null; }
-interface Photo { url: string; }
-interface Notice { kind: 'ok' | 'err'; text: string; }
 type Stage = 'draft' | 'review' | 'live';
 type Status = 'draft' | 'submitted';
 type VinState = 'idle' | 'decoding' | 'populate';
@@ -35,9 +33,8 @@ type VinState = 'idle' | 'decoding' | 'populate';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddCar implements OnDestroy {
-
-  done='checkmark.png'
-  add='plus.png'
+  done = 'checkmark.png';
+  add = 'plus.png';
   @Output() submitted = new EventEmitter<Record<string, unknown>>();
   @Output() draftSaved = new EventEmitter<Record<string, unknown>>();
 
@@ -70,9 +67,10 @@ export class AddCar implements OnDestroy {
     ],
     body: [''],
     colour: [''],
-    // specifications
-    mileage: [0, [Validators.min(0)]],
-    engine: [0, [Validators.min(0)]],
+    
+    mileage: [0, [Validators.required, Validators.min(0), Validators.max(1000000)]],
+
+    engine: [0, [Validators.required, Validators.min(0), Validators.max(10.0)]],
     drive: ['2WD'],
     transmission: ['Automatic'],
     fuel: ['Petrol'],
@@ -95,7 +93,10 @@ export class AddCar implements OnDestroy {
 
   /** Live snapshot of the form as a signal. */
   readonly v = toSignal(
-    this.form.valueChanges.pipe(startWith(null), map(() => this.form.getRawValue())),
+    this.form.valueChanges.pipe(
+      startWith(null),
+      map(() => this.form.getRawValue()),
+    ),
     { requireSync: true },
   );
 
@@ -104,7 +105,11 @@ export class AddCar implements OnDestroy {
   readonly banks = signal<string[]>([]);
 
   readonly features = signal<string[]>([
-    'Leather seats', 'Sunroof', 'Reverse camera', 'Apple CarPlay', 'Keyless entry',
+    'Leather seats',
+    'Sunroof',
+    'Reverse camera',
+    'Apple CarPlay',
+    'Keyless entry',
   ]);
   readonly selected = signal(new Set<string>());
   readonly adding = signal(false);
@@ -150,9 +155,12 @@ export class AddCar implements OnDestroy {
 
   readonly vinButtonLabel = computed(() => {
     switch (this.vinState()) {
-      case 'decoding': return 'DECODING…';
-      case 'populate': return 'POPULATE';
-      default: return 'DECODE';
+      case 'decoding':
+        return 'DECODING…';
+      case 'populate':
+        return 'POPULATE';
+      default:
+        return 'DECODE';
     }
   });
 
@@ -177,10 +185,10 @@ export class AddCar implements OnDestroy {
   private now(): string {
     return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   }
-/** True when every control belonging to the given section is valid. */
-sectionOk(keys: (keyof typeof this.f)[]): boolean {
-  return keys.every((k) => this.f[k].valid);
-}
+  /** True when every control belonging to the given section is valid. */
+  sectionOk(keys: (keyof typeof this.f)[]): boolean {
+    return keys.every((k) => this.f[k].valid);
+  }
   /* ---------- VIN: decode → populate ---------- */
   onVinButton(): void {
     const state = this.vinState();
@@ -283,9 +291,7 @@ sectionOk(keys: (keyof typeof this.f)[]): boolean {
 
   startAdd(): void {
     this.adding.set(true);
-    setTimeout(
-      () => (document.querySelector('.chip--input') as HTMLInputElement | null)?.focus(),
-    );
+    setTimeout(() => (document.querySelector('.chip--input') as HTMLInputElement | null)?.focus());
   }
 
   addFeature(raw: string): void {
@@ -407,15 +413,11 @@ sectionOk(keys: (keyof typeof this.f)[]): boolean {
   setDoc(index: number, e: Event): void {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    this.docs.update((list) =>
-      list.map((d, i) => (i === index ? { ...d, file } : d)),
-    );
+    this.docs.update((list) => list.map((d, i) => (i === index ? { ...d, file } : d)));
   }
 
   removeDoc(index: number): void {
-    this.docs.update((list) =>
-      list.map((d, i) => (i === index ? { ...d, file: null } : d)),
-    );
+    this.docs.update((list:any) => list.map((d:any, i) => (i === index ? { ...d, file: null } : d)));
   }
 
   /* ---------- review video ---------- */
@@ -576,8 +578,7 @@ sectionOk(keys: (keyof typeof this.f)[]): boolean {
           this.notice.set({
             kind: 'err',
             text:
-              err?.error?.message ??
-              'Could not save the car. Check your connection and try again.',
+              err?.error?.message ?? 'Could not save the car. Check your connection and try again.',
           }),
       });
   }

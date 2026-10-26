@@ -1,26 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-
+import { SaveCarResponse, DecodedVin } from './interfaces/car-interface';
 /** Change this to your backend base URL (or move it into your environment file). */
 export const API_URL = '/api';
-
-export interface DecodedVin {
-  make?: string;
-  model?: string;
-  year?: number;
-  body?: string;
-  engine?: number;
-  drive?: string;
-  transmission?: string;
-  fuel?: string;
-}
-
-export interface SaveCarResponse {
-  id: string;
-  stockNo?: string;
-}
-
 const titleCase = (s: string) =>
   s.toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a: string, b: string) => a + b.toUpperCase());
 
@@ -75,27 +58,37 @@ export class CarService {
 
         const body = (x['BodyClass'] ?? '').toLowerCase();
         if (body) {
-          out.body = /sport utility|suv/.test(body) ? 'SUV'
-            : /sedan|saloon/.test(body) ? 'Sedan'
-            : /hatchback/.test(body) ? 'Hatchback'
-            : /pickup/.test(body) ? 'Pickup'
-            : /van/.test(body) ? 'Van'
-            : x['BodyClass'];
+          out.body = /sport utility|suv/.test(body)
+            ? 'SUV'
+            : /sedan|saloon/.test(body)
+              ? 'Sedan'
+              : /hatchback/.test(body)
+                ? 'Hatchback'
+                : /pickup/.test(body)
+                  ? 'Pickup'
+                  : /van/.test(body)
+                    ? 'Van'
+                    : x['BodyClass'];
         }
 
         const drive = (x['DriveType'] ?? '').toLowerCase();
         if (drive) {
-          out.drive = /4wd|4x4|4-wheel/.test(drive) ? '4WD'
-            : /awd|all-wheel/.test(drive) ? 'AWD'
-            : '2WD';
+          out.drive = /4wd|4x4|4-wheel/.test(drive)
+            ? '4WD'
+            : /awd|all-wheel/.test(drive)
+              ? 'AWD'
+              : '2WD';
         }
 
         const trans = (x['TransmissionStyle'] ?? '').toLowerCase();
         if (trans) {
-          out.transmission = /cvt|continuously/.test(trans) ? 'CVT'
-            : /manual/.test(trans) ? 'Manual'
-            : /automatic/.test(trans) ? 'Automatic'
-            : undefined;
+          out.transmission = /cvt|continuously/.test(trans)
+            ? 'CVT'
+            : /manual/.test(trans)
+              ? 'Manual'
+              : /automatic/.test(trans)
+                ? 'Automatic'
+                : undefined;
         }
 
         const fuel = (x['FuelTypePrimary'] ?? '').toLowerCase();
@@ -106,10 +99,11 @@ export class CarService {
         else if (fuel.includes('gasoline')) out.fuel = 'Petrol';
 
         // drop undefined keys so "found anything?" is just Object.keys().length
-        (Object.keys(out) as (keyof DecodedVin)[]).forEach((k) => out[k] === undefined && delete out[k]);
+        (Object.keys(out) as (keyof DecodedVin)[]).forEach(
+          (k) => out[k] === undefined && delete out[k],
+        );
         return out;
       }),
     );
   }
-  
 }
