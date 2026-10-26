@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   EventEmitter,
+  HostListener,
   OnDestroy,
   Output,
   computed,
@@ -9,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+
 import {
   AbstractControl,
   FormControl,
@@ -17,12 +19,15 @@ import {
   Validators,
 } from '@angular/forms';
 import { finalize, map, startWith } from 'rxjs';
+
 import { CarService, DecodedVin } from '../../../car-service';
-import {Doc, Photo, Notice} from '../../../interfaces/car-interface'
+import { CarRecord, Doc, Notice, Photo } from '../../../interfaces/car-interface';
 
 type Stage = 'draft' | 'review' | 'live';
 type Status = 'draft' | 'submitted';
 type VinState = 'idle' | 'decoding' | 'populate';
+type StockState = 'idle' | 'editing' | 'querying' | 'populate';
+type Mode = 'add' | 'edit';
 
 @Component({
   selector: 'app-add-car',
@@ -67,7 +72,7 @@ export class AddCar implements OnDestroy {
     ],
     body: [''],
     colour: [''],
-    
+
     mileage: [0, [Validators.required, Validators.min(0), Validators.max(1000000)]],
 
     engine: [0, [Validators.required, Validators.min(0), Validators.max(10.0)]],
@@ -137,6 +142,19 @@ export class AddCar implements OnDestroy {
   readonly decoded = signal<DecodedVin | null>(null);
   readonly decodeMsg = signal('');
 
+  /* ---------- mode: 'add' | 'edit' ---------- */
+  readonly mode = signal<Mode>('add');
+
+  /* ---------- stock-no lookup (edit mode) ---------- */
+  readonly stockState = signal<StockState>('idle');
+  readonly stockDraft = new FormControl('', { nonNullable: true });
+  readonly stockError = signal('');
+  readonly pendingCar = signal<CarRecord | null>(null);
+
+  /* ---------- discard-changes modal ---------- */
+  readonly showDiscardModal = signal(false);
+  private pendingAction: (() => void) | null = null;
+
   /* ---------- derived ---------- */
   readonly margin = computed(() => this.v().price - this.v().cost);
   readonly marginPct = computed(() =>
@@ -149,8 +167,18 @@ export class AddCar implements OnDestroy {
   readonly bankMissing = computed(() => this.v().financing && this.banks().length === 0);
 
   readonly badgeText = computed(() => {
-    if (this.stage() !== 'draft') return `SUBMITTED · ${this.savedAt()}`;
-    return this.savedAt() ? `DRAFT · SAVED ${this.savedAt()}` : 'DRAFT · NOT SAVED YET';
+    const m = this.mode();
+    const s = this.stage();
+    const saved = this.savedAt();
+
+    if (m === 'edit') {
+      if (!this.carId()) return 'EDITING · NO CAR LOADED';
+      return saved
+        ? `EDITING · ${this.stockNo()} · SAVED ${saved}`
+        : `EDITING · ${this.stockNo()}`;
+    }
+    if (s !== 'draft') return `SUBMITTED · ${saved}`;
+    return saved ? `ADDING · SAVED ${saved}` : 'ADDING · NOT SAVED YET';
   });
 
   readonly vinButtonLabel = computed(() => {
@@ -161,6 +189,19 @@ export class AddCar implements OnDestroy {
         return 'POPULATE';
       default:
         return 'DECODE';
+    }
+  });
+
+  readonly stockButtonLabel = computed(() => {
+    switch (this.stockState()) {
+      case 'querying':
+        return 'QUERYING…';
+      case 'populate':
+        return 'POPULATE';
+      case 'editing':
+        return 'FIND';
+      default:
+        return 'EDIT VEHICLE DETAILS';
     }
   });
 
@@ -185,10 +226,210 @@ export class AddCar implements OnDestroy {
   private now(): string {
     return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   }
+
   /** True when every control belonging to the given section is valid. */
   sectionOk(keys: (keyof typeof this.f)[]): boolean {
     return keys.every((k) => this.f[k].valid);
   }
+
+  /* ============================================================
+     MODE SWITCHING  (with discard-changes confirmation)
+     ============================================================ */
+
+  private isDirty(): boolean {
+    return (
+      this.form.dirty ||
+      this.photos().length > 0 ||
+      this.banks().length > 0 ||
+      this.docs().some((d) => d.file) ||
+      this.selected().size > 0
+    );
+  }
+
+  clickAddNew(): void {
+    if (this.mode() === 'add') {
+      this.resetForm();
+      return;
+    }
+    const proceed = () => this.switchToAdd();
+    if (this.isDirty()) {
+      this.pendingAction = proceed;
+      this.showDiscardModal.set(true);
+    } else {
+      proceed();
+    }
+  }
+
+  clickEdit(): void {
+    if (this.mode() === 'edit') {
+      // Already in edit mode → make sure the stock input is focused
+      this.stockState.set('editing');
+      return;
+    }
+    const proceed = () => this.switchToEdit();
+    if (this.isDirty()) {
+      this.pendingAction = proceed;
+      this.showDiscardModal.set(true);
+    } else {
+      proceed();
+    }
+  }
+
+  private switchToAdd(): void {
+    this.resetForm();
+    this.mode.set('add');
+    this.stockState.set('idle');
+    this.stockDraft.setValue('');
+    this.stockError.set('');
+    this.pendingCar.set(null);
+  }
+
+  private switchToEdit(): void {
+    this.resetForm();
+    this.mode.set('edit');
+    this.stockState.set('editing');
+    this.stockDraft.setValue('');
+    this.stockError.set('');
+    this.pendingCar.set(null);
+  }
+
+  confirmDiscard(): void {
+    this.showDiscardModal.set(false);
+    const fn = this.pendingAction;
+    this.pendingAction = null;
+    fn?.();
+  }
+
+  cancelDiscard(): void {
+    this.showDiscardModal.set(false);
+    this.pendingAction = null;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(e: BeforeUnloadEvent): void {
+    if (this.isDirty()) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  }
+
+  /* ============================================================
+     STOCK-NO LOOKUP  (edit mode)
+     ============================================================ */
+
+  onStockButton(): void {
+    const state = this.stockState();
+
+    if (state === 'populate') {
+      this.applyPendingCar();
+      return;
+    }
+    if (state === 'querying') return;
+
+    const stock = this.stockDraft.value.trim().toUpperCase();
+    if (!stock) {
+      this.stockError.set('Enter a stock number first.');
+      return;
+    }
+
+    this.stockError.set('');
+    this.stockState.set('querying');
+
+    this.api
+      .getCarByStockNo(stock)
+      .pipe(
+        finalize(() => {
+          if (this.stockState() === 'querying') this.stockState.set('editing');
+        }),
+      )
+      .subscribe({
+        next: (car) => {
+          if (!car) {
+            this.stockError.set('No car found with that stock number.');
+            return;
+          }
+          this.pendingCar.set(car);
+          this.stockState.set('populate');
+        },
+        error: () => {
+          this.stockError.set('Lookup failed. Check your connection and try again.');
+        },
+      });
+  }
+
+  private applyPendingCar(): void {
+    const car = this.pendingCar();
+    if (!car) return;
+
+    // 1. Form fields
+    this.form.patchValue({
+      make: car.make ?? '',
+      model: car.model ?? '',
+      year: car.year ?? new Date().getFullYear(),
+      body: car.body ?? '',
+      colour: car.colour ?? '',
+      mileage: car.mileage ?? 0,
+      engine: car.engine ?? 0,
+      drive: car.drive ?? '2WD',
+      transmission: car.transmission ?? 'Automatic',
+      fuel: car.fuel ?? 'Petrol',
+      vin: car.vin ?? '',
+      source: car.source ?? this.sources[0],
+      branch: car.branch ?? this.branches[0],
+      cost: car.cost ?? 0,
+      price: car.price ?? 0,
+      negotiable: !!car.negotiable,
+      financing: !!car.financing,
+      notes: car.notes ?? '',
+      showOnWeb: car.showOnWeb ?? true,
+      salesperson: car.salesperson ?? this.salespeople[0],
+      reviewVideoUrl: car.reviewVideoUrl ?? '',
+    });
+    this.form.markAsPristine();
+
+    // 2. Photos
+    this.photos.set(
+      (car.photos ?? []).map((url) => (typeof url === 'string' ? { url } : url)),
+    );
+
+    // 3. Features
+    const feat: string[] = car.features ?? [];
+    this.selected.set(new Set(feat));
+    this.features.update((list) => {
+      const merged = [...list];
+      for (const f of feat) if (!merged.includes(f)) merged.push(f);
+      return merged;
+    });
+
+    // 4. Banks
+    this.banks.set(car.banks ?? []);
+
+    // 5. Documents — mark server-side files via `serverName` and an empty File stub
+    const docsFromServer: { label: string; fileName: string }[] = car.documents ?? [];
+    this.docs.update((list) =>
+      list.map((d) => {
+        const match = docsFromServer.find((x) => x.label === d.label);
+        return match
+          ? { ...d, file: new File([], match.fileName) as File, serverName: match.fileName }
+          : d;
+      }),
+    );
+
+    // 6. Identity
+    this.carId.set(car.id ?? null);
+    this.stockNo.set(car.stockNo ?? this.stockDraft.value.trim().toUpperCase());
+    this.stage.set(car.status === 'submitted' ? 'review' : 'draft');
+    this.savedAt.set('');
+
+    // 7. Reset lookup state
+    this.pendingCar.set(null);
+    this.stockState.set('idle');
+    this.notice.set({
+      kind: 'ok',
+      text: `Car ${this.stockNo()} loaded for editing.`,
+    });
+  }
+
   /* ---------- VIN: decode → populate ---------- */
   onVinButton(): void {
     const state = this.vinState();
@@ -291,7 +532,9 @@ export class AddCar implements OnDestroy {
 
   startAdd(): void {
     this.adding.set(true);
-    setTimeout(() => (document.querySelector('.chip--input') as HTMLInputElement | null)?.focus());
+    setTimeout(
+      () => (document.querySelector('.chip--input') as HTMLInputElement | null)?.focus(),
+    );
   }
 
   addFeature(raw: string): void {
@@ -303,7 +546,6 @@ export class AddCar implements OnDestroy {
     this.adding.set(false);
   }
 
-  /** Discards a feature from the list entirely (and unselects it). */
   removeFeature(ft: string): void {
     this.features.update((list) => list.filter((f) => f !== ft));
     this.selected.update((s) => {
@@ -347,10 +589,6 @@ export class AddCar implements OnDestroy {
     return true;
   }
 
-  /**
-   * Whenever at least one photo exists, the image-URL input and the paste
-   * box are cleared so staff aren't left staring at stale text.
-   */
   private clearPhotoInputsIfAnyPhotos(): void {
     if (this.photos().length > 0) {
       if (this.photoUrlDraft.value) this.photoUrlDraft.setValue('');
@@ -363,7 +601,6 @@ export class AddCar implements OnDestroy {
     this.clearPhotoInputsIfAnyPhotos();
   }
 
-  /** Parse pasted text: one or more URLs separated by newlines / commas / spaces. */
   addPastedLinks(): void {
     const raw = this.pasteDraft.value;
     if (!raw.trim()) return;
@@ -383,7 +620,6 @@ export class AddCar implements OnDestroy {
       else skipped++;
     }
 
-    // Clear the paste box + URL input once we have photos.
     this.clearPhotoInputsIfAnyPhotos();
 
     if (added && !skipped) {
@@ -401,7 +637,6 @@ export class AddCar implements OnDestroy {
 
   removePhoto(i: number): void {
     this.photos.update((list) => list.filter((_, idx) => idx !== i));
-    // If the last photo was removed, also clear any leftover text in the inputs.
     this.clearPhotoInputsIfAnyPhotos();
   }
 
@@ -413,11 +648,19 @@ export class AddCar implements OnDestroy {
   setDoc(index: number, e: Event): void {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    this.docs.update((list) => list.map((d, i) => (i === index ? { ...d, file } : d)));
+    this.docs.update((list) =>
+      list.map((d, i) =>
+        i === index ? { ...d, file, serverName: undefined } : d,
+      ),
+    );
   }
 
   removeDoc(index: number): void {
-    this.docs.update((list:any) => list.map((d:any, i) => (i === index ? { ...d, file: null } : d)));
+    this.docs.update((list) =>
+      list.map((d, i) =>
+        i === index ? { ...d, file: null, serverName: undefined } : d,
+      ),
+    );
   }
 
   /* ---------- review video ---------- */
@@ -427,11 +670,7 @@ export class AddCar implements OnDestroy {
   }
 
   /* ---------- reset / clear form ---------- */
-  /**
-   * Fully resets the component so the form is ready for the next car.
-   */
   resetForm(): void {
-    // 1. Reset the reactive form + clear validation/dirty state
     this.form.reset({
       make: '',
       model: '',
@@ -459,7 +698,6 @@ export class AddCar implements OnDestroy {
     this.form.markAsUntouched();
     this.showErrors.set(false);
 
-    // 2. Clear extra UI state
     this.bankDraft.setValue('');
     this.banks.set([]);
     this.selected.set(new Set());
@@ -476,22 +714,18 @@ export class AddCar implements OnDestroy {
       { label: 'Seller ID / KRA PIN', file: null },
     ]);
 
-    // 3. Reset stage / record identity so the next save creates a new car
     this.stage.set('draft');
     this.carId.set(null);
     this.stockNo.set('');
     this.savedAt.set('');
     this.saving.set(false);
 
-    // 4. Reset VIN state
     this.vinState.set('idle');
     this.decoded.set(null);
     this.decodeMsg.set('');
 
-    // 5. Clear the notice
     this.notice.set(null);
 
-    // Reset the native file inputs that were already consumed
     document
       .querySelectorAll<HTMLInputElement>('.docs input[type="file"]')
       .forEach((el) => (el.value = ''));
@@ -511,7 +745,11 @@ export class AddCar implements OnDestroy {
       photos: this.photos().map((p) => p.url),
       documents: this.docs()
         .filter((d) => d.file)
-        .map((d) => ({ label: d.label, fileName: d.file!.name })),
+        .map((d) => ({
+          label: d.label,
+          fileName: d.file!.name || d.serverName,
+          existing: !!d.serverName && d.file!.size === 0,
+        })),
       status,
     };
   }
@@ -559,14 +797,17 @@ export class AddCar implements OnDestroy {
 
           if (status === 'submitted') {
             this.submitted.emit(record);
-            // Clear everything so the form is ready for the next car.
+            const wasEdit = this.mode() === 'edit';
             this.resetForm();
+            if (wasEdit) {
+              this.mode.set('edit');
+              this.stockState.set('editing');
+            }
             this.notice.set({
               kind: 'ok',
               text: `Car submitted for review${savedStockNo ? ` (${savedStockNo})` : ''}.`,
             });
           } else {
-            // For drafts we keep the current record so subsequent saves update it.
             this.carId.set(savedId);
             if (savedStockNo) this.stockNo.set(savedStockNo);
             this.savedAt.set(savedTime);
@@ -578,8 +819,14 @@ export class AddCar implements OnDestroy {
           this.notice.set({
             kind: 'err',
             text:
-              err?.error?.message ?? 'Could not save the car. Check your connection and try again.',
+              err?.error?.message ??
+              'Could not save the car. Check your connection and try again.',
           }),
       });
+  }
+
+  /* ---------- legacy hook (kept because template may reference it) ---------- */
+  editCarDetails(): void {
+    this.clickEdit();
   }
 }

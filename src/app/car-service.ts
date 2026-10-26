@@ -1,11 +1,18 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { SaveCarResponse, DecodedVin } from './interfaces/car-interface';
+import { SaveCarResponse, DecodedVin, CarRecord } from './interfaces/car-interface';
+
+export type { DecodedVin } from './interfaces/car-interface';
+export type { SaveCarResponse } from './interfaces/car-interface';
+
 /** Change this to your backend base URL (or move it into your environment file). */
 export const API_URL = '/api';
+
 const titleCase = (s: string) =>
-  s.toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a: string, b: string) => a + b.toUpperCase());
+  s
+    .toLowerCase()
+    .replace(/(^|[\s-])([a-z])/g, (_, a: string, b: string) => a + b.toUpperCase());
 
 @Injectable({ providedIn: 'root' })
 export class CarService {
@@ -27,11 +34,23 @@ export class CarService {
     const body = new FormData();
     body.append('data', JSON.stringify(data));
     photos.forEach((f) => body.append('photos', f, f.name));
-    documents.forEach((f) => body.append('documents', f, f.name));
+    documents
+      .filter((f) => f.size > 0) // skip placeholder files that only carry a server name
+      .forEach((f) => body.append('documents', f, f.name));
 
     return id
       ? this.http.put<SaveCarResponse>(`${API_URL}/cars/${id}`, body)
       : this.http.post<SaveCarResponse>(`${API_URL}/cars`, body);
+  }
+
+  /**
+   * Fetches a fully-populated car record by stock number (used by edit mode).
+   * Adjust the URL to match your backend.
+   */
+  getCarByStockNo(stockNo: string): Observable<CarRecord> {
+    return this.http.get<CarRecord>(
+      `${API_URL}/cars/by-stock/${encodeURIComponent(stockNo)}`,
+    );
   }
 
   /**
@@ -40,7 +59,9 @@ export class CarService {
    * and return the same DecodedVin shape.
    */
   decodeVin(vin: string): Observable<DecodedVin> {
-    const url = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(vin)}?format=json`;
+    const url = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(
+      vin,
+    )}?format=json`;
 
     return this.http.get<{ Results?: Record<string, string>[] }>(url).pipe(
       map((res) => {

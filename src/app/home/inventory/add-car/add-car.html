@@ -2,8 +2,50 @@
   <!-- ============ MAIN FORM ============ -->
   <form class="card main" novalidate>
     <header class="card-head">
-      <div>
-        <h1>ADD NEW CAR</h1>
+      <div class="card-head-left">
+        <h1 class="title-tabs">
+          <button
+            type="button"
+            class="title-tab"
+            [class.title-tab--on]="mode() === 'add'"
+            (click)="clickAddNew()"
+          >
+            ADD NEW VEHICLE
+          </button>
+
+          @if (mode() === 'add') {
+            <button type="button" class="title-tab" (click)="clickEdit()">
+              EDIT VEHICLE DETAILS
+            </button>
+          } @else {
+            <span class="title-tab title-tab--edit">
+              <input
+                type="text"
+                class="title-tab__input"
+                placeholder="Enter Stock no."
+                autocomplete="off"
+                spellcheck="false"
+                [formControl]="stockDraft"
+                [disabled]="stockState() === 'querying'"
+                (keydown.enter)="onStockButton(); $event.preventDefault()"
+              />
+              <button
+                type="button"
+                class="title-tab__action"
+                [class.title-tab__action--populate]="stockState() === 'populate'"
+                [disabled]="stockState() === 'querying'"
+                (click)="onStockButton()"
+              >
+                {{ stockButtonLabel() }}
+              </button>
+            </span>
+          }
+        </h1>
+
+        @if (stockError()) {
+          <span class="err">{{ stockError() }}</span>
+        }
+
         <p>
           Create an inventory record. Fields marked <span class="tag">INTERNAL</span> are never
           shown to customers.
@@ -454,7 +496,7 @@
         PHOTOS · {{ photos().length }} OF {{ maxPhotos }} · FIRST PHOTO IS THE COVER
       </div>
 
-      <!-- Paste links box (replaces drag & drop) -->
+      <!-- Paste links box -->
       <div class="paste">
         <span class="paste__title">PASTE IMAGE LINKS</span>
         <textarea
@@ -572,7 +614,7 @@
                 <img [src]="done" alt="" />
               </span>
               <span class="doc-name">{{ d.label }}</span>
-              <span class="doc-file">{{ d.file.name }}</span>
+              <span class="doc-file">{{ d.serverName || d.file.name }}</span>
               <button
                 type="button"
                 class="doc-x"
@@ -634,4 +676,31 @@
       </button>
     </div>
   </aside>
+
+  <!-- ============ DISCARD-CHANGES MODAL ============ -->
+  @if (showDiscardModal()) {
+    <div class="modal-backdrop" (click)="cancelDiscard()"></div>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="discard-title">
+      <h2 class="modal__title" id="discard-title">Discard changes?</h2>
+      <p class="modal__body">
+        @if (mode() === 'edit') {
+          You have unsaved edits. Switching to new vehicle mode will discard them.
+        } @else {
+          You have unsaved new vehicle details. Switching to edit mode will discard them.
+        }
+      </p>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancelDiscard()">
+          @if (mode() === 'edit') {
+            CONTINUE EDITING
+          } @else {
+            CONTINUE ADDING
+          }
+        </button>
+        <button type="button" class="btn btn--primary" (click)="confirmDiscard()">
+          DISCARD
+        </button>
+      </div>
+    </div>
+  }
 </section>
