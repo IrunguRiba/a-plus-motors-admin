@@ -4,22 +4,7 @@ export interface CarInterface {}
     url: string;
   }
  
-
-  export interface DecodedVin {
-    make?: string;
-    model?: string;
-    year?: number;
-    body?: string;
-    engine?: number;
-    drive?: string;
-    transmission?: string;
-    fuel?: string;
-  }
   
-  export interface SaveCarResponse {
-    id: string;
-    stockNo?: string;
-  }
   export interface SaveCarResponse {
     id: string;
     stockNo?: string;
@@ -43,7 +28,6 @@ export interface CarInterface {}
   export interface Doc {
     label: string;
     file: File | null;
-    /** Set when the document already exists on the server (edit mode). */
     serverName?: string;
   }
   

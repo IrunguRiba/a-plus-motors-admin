@@ -807,10 +807,7 @@ button {
   line-height: 1.6;
   letter-spacing: 0.01em;
   resize: vertical;
-  color: var(--blue);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 1px;
   outline: none;
   transition:
     border-color 0.2s var(--ease),
@@ -821,7 +818,6 @@ button {
 }
 .paste__area:focus {
   border-color: var(--blue);
-  background: #fff;
 }
 .paste__area::placeholder {
   color: var(--ink);
