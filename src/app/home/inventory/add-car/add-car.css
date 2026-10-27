@@ -132,7 +132,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 14px;
+  padding: 0 15px;
   font-family: inherit;
   font-size: 14px;
   font-weight: 500;
@@ -192,13 +192,14 @@ button {
   min-width: 0;
   height: 100%;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   background: transparent;
   border: 0;
   outline: none;
   box-sizing: border-box;
+
 }
 
 /* Inner action button: full inner height, no vertical padding that could
