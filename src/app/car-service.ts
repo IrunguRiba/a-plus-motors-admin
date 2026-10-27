@@ -8,7 +8,7 @@ export type { DecodedVin } from './interfaces/car-interface';
 export type { SaveCarResponse } from './interfaces/car-interface';
 
 /** Change this to your backend base URL (or move it into your environment file). */
-export const API_URL = 'http://localhost:4000/api/admin';
+export const API_URL = 'https://a-plus-motors-admin-backend.onrender.com/api/admin';
 
 const titleCase = (s: string) =>
   s
