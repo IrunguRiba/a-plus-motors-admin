@@ -6,8 +6,6 @@ import { StockNoGenerator } from './helper/stock-no-generator';
 
 export type { DecodedVin } from './interfaces/car-interface';
 export type { SaveCarResponse } from './interfaces/car-interface';
-
-/** Change this to your backend base URL (or move it into your environment file). */
 export const API_URL = 'https://a-plus-motors-admin-backend.onrender.com/api/admin';
 
 const titleCase = (s: string) =>
@@ -78,11 +76,6 @@ function asStringArray(v: unknown): string[] {
   }
   return [];
 }
-
-/**
- * Map whatever the backend actually returns into a `CarRecord`.
- * Tolerates wrapped payloads, `_id` vs `id`, and common field aliases.
- */
 function normaliseCar(raw: unknown): CarRecord | null {
   const src = unwrap<Record<string, unknown>>(raw);
   if (!src) return null;
@@ -171,12 +164,6 @@ export class CarService {
       this.buildFormData(data, photos, documents),
     );
   }
-
-  /**
-   * Updates a car. PATCH /cars/update
-   * Locator (stockNo | id | _id) goes in the JSON "data" payload,
-   * along with every field being changed.
-   */
   updateCar(
     data: Record<string, unknown>,
     photos: File[] = [],
@@ -187,11 +174,6 @@ export class CarService {
       this.buildFormData(data, photos, documents),
     );
   }
-
-  /**
-   * Backwards-compatible wrapper: picks create vs. update based on `id`.
-   * Prefer createCar/updateCar directly.
-   */
   saveCar(
     id: string | null,
     data: Record<string, unknown>,
@@ -202,12 +184,6 @@ export class CarService {
       ? this.updateCar({ ...data, id }, photos, documents)
       : this.createCar(data, photos, documents);
   }
-
-  /**
-   * Fetches a car by stock number. POST /cars/find  body: { stockNo }
-   * Normalises the response into a `CarRecord` shape regardless of how the
-   * backend names or wraps fields.
-   */
   getCarByStockNo(stockNo: string): Observable<CarRecord> {
     return this.http
       .post<unknown>(`${API_URL}/cars/find`, { stockNo })
@@ -215,18 +191,12 @@ export class CarService {
         map((res) => {
           const car = normaliseCar(res);
           if (!car) {
-            // Return an empty record so callers get a falsy-ish signal
-            // (component already checks Object.keys(car).length)
             throw new Error(`No car found for stock number "${stockNo}".`);
           }
           return car;
         }),
       );
   }
-
-  /**
-   * Fetches a car by custom id or Mongo _id. POST /cars/find
-   */
   getCarById(id: string): Observable<CarRecord> {
     return this.http
       .post<unknown>(`${API_URL}/cars/find`, { id })
@@ -238,28 +208,12 @@ export class CarService {
         }),
       );
   }
-
-  /**
-   * Search / list. POST /cars/search
-   * Empty body => all cars (paginated).
-   */
   searchCar(body: Record<string, unknown> = {}): Observable<unknown> {
     return this.http.post(`${API_URL}/cars/search`, body);
   }
-
-  /**
-   * Deletes a car. DELETE /cars/delete  body: { stockNo } | { id } | { _id }
-   * (Some proxies strip DELETE bodies; if yours does, switch backend to POST.)
-   */
   deleteCar(locator: { stockNo?: string; id?: string; _id?: string }): Observable<unknown> {
     return this.http.delete(`${API_URL}/cars/delete`, { body: locator });
   }
-
-  /**
-   * Returns the next stock number built client-side from the backend's
-   * live car count. Mirrors the Mongoose pre-save format exactly.
-   * GET /cars/next-sequence -> { sequence: number }
-   */
   generateStockNo(
     make: string,
     model: string,

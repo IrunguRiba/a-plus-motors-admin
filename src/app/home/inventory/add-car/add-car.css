@@ -1,6 +1,4 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 
 :host {
   --ink: #000000;
@@ -17,7 +15,7 @@
   --green-line: #112d4e;
   --amber: #36415a;
   --amber-tint: #fdf0e1;
-  --red: #c62828;
+  --red: #BC0202;
   --red-tint: #fdeceb;
   --red-line: #f3c2be;
   --down: #ff0000;
@@ -107,9 +105,6 @@ button {
   min-width: 0;
 }
 
-/* Two side-by-side tab buttons, spread across the full available width.
-   Fixed height shared by every variant prevents layout jump between
-   ADD-NEW and EDIT (stock input + FIND/POPULATE) states. */
 .card-head h1.title-tabs {
   display: flex;
   width: 100%;
@@ -123,7 +118,6 @@ button {
   height: var(--tab-h);
 }
 
-/* Base tab (also applies to the edit-mode pill wrapper) */
 .card-head h1.title-tabs .title-tab,
 .card-head h1.title-tabs .title-tab--edit {
   flex: 1 1 0;
@@ -163,7 +157,6 @@ button {
   outline-offset: 2px;
 }
 
-/* Active tab */
 .card-head h1.title-tabs .title-tab--on {
   background: var(--blue);
   border-color: var(--blue);
@@ -175,9 +168,6 @@ button {
   color: var(--on-accent);
 }
 
-/* Edit-mode pill (stock input + FIND/POPULATE button) — same outer
-   footprint as a plain .title-tab, but with zero horizontal padding so
-   the inner input fills it edge-to-edge. */
 .card-head h1.title-tabs .title-tab--edit {
   padding: 0;
   border-color: var(--blue);
@@ -186,7 +176,6 @@ button {
   overflow: hidden;
 }
 
-/* Inner input: fills remaining space, doesn't add height */
 .title-tab__input {
   flex: 1 1 0;
   min-width: 0;
@@ -199,11 +188,8 @@ button {
   border: 0;
   outline: none;
   box-sizing: border-box;
-
 }
 
-/* Inner action button: full inner height, no vertical padding that could
-   push the pill taller than a normal tab. */
 .title-tab__action {
   flex: none;
   height: 100%;
@@ -269,7 +255,6 @@ button {
   letter-spacing: 0.12em;
 }
 
-/* section marker — number by default, image when the section is valid */
 .num {
   display: grid;
   place-items: center;
@@ -612,7 +597,6 @@ button {
   margin-top: 14px;
 }
 
-/* feature chips */
 .chip--feature {
   display: inline-flex;
   align-items: center;
@@ -710,7 +694,7 @@ button {
   outline-offset: 2px;
 }
 .btn--ghost:hover {
-  background: var(--ink);
+  background: var(--blue-dark);
   color: var(--on-accent);
 }
 .btn--primary {
@@ -745,7 +729,6 @@ button {
   transform: none;
 }
 
-/* VIN POPULATE state */
 .btn--populate {
   background: var(--green);
   border-color: var(--green);
@@ -896,7 +879,6 @@ button {
   display: block;
 }
 
-/* first photo = cover */
 .thumb--cover {
   border: 2px solid var(--blue);
   box-shadow: 0 0 0 3px var(--blue-tint);
@@ -906,7 +888,6 @@ button {
   box-shadow: 0 0 0 3px var(--blue-tint);
 }
 
-/* empty slot */
 .thumb--empty {
   background:
     repeating-linear-gradient(
@@ -945,7 +926,6 @@ button {
   opacity: 0.6;
 }
 
-/* remove button */
 .thumb__x {
   position: absolute;
   top: 0;
@@ -981,7 +961,6 @@ button {
   outline-offset: 1px;
 }
 
-/* cover badge */
 .thumb__cover {
   position: absolute;
   left: 0;
@@ -1126,7 +1105,6 @@ button {
   outline-offset: 2px;
 }
 
-/* document status icons — image based */
 .ico {
   display: grid;
   place-items: center;
@@ -1275,6 +1253,75 @@ button {
   gap: 12px;
 }
 .modal__actions .btn {
+  height: 40px;
+  font-size: 12px;
+}
+
+/* ============ DANGER / DELETE ============ */
+.btn--danger {
+  height: 48px;
+  padding: 0 22px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+  background: var(--surface);
+  border: 1.5px solid var(--red);
+  border-radius: 4px;
+  transition:
+    background 0.2s var(--ease),
+    color 0.2s var(--ease),
+    border-color 0.2s var(--ease),
+    transform 0.2s var(--ease);
+}
+.btn--danger:hover:not(:disabled) {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--on-accent);
+  transform: translateY(-1px);
+}
+.btn--danger:active:not(:disabled) {
+  transform: translateY(0);
+}
+.btn--danger:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+.btn--danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.modal--danger {
+  border-color: var(--amber);
+}
+.modal--danger .modal__title {
+  color: var(--red);
+}
+.confirm-phrase {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--red);
+  background: var(--red-tint);
+  border: 1px solid var(--red-line);
+  border-radius: 3px;
+  word-break: break-all;
+}
+.modal--danger .control {
+  margin-bottom: 18px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+.modal--danger .control:focus-visible {
+  border-color: var(--red);
+}
+.modal--danger .modal__actions .btn {
   height: 40px;
   font-size: 12px;
 }

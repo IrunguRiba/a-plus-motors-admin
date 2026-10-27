@@ -1,4 +1,4 @@
-<section class="add-car" [formGroup]="form">
+<section class="add-car" #host [formGroup]="form">
   <!-- ============ MAIN FORM ============ -->
   <form class="card main" novalidate>
     <header class="card-head">
@@ -495,7 +495,6 @@
         PHOTOS · {{ photos().length }} OF {{ maxPhotos }} · FIRST PHOTO IS THE COVER
       </div>
 
-      <!-- Paste links box -->
       <div class="paste">
         <span class="paste__title">PASTE IMAGE LINKS</span>
         <textarea
@@ -517,7 +516,6 @@
         </div>
       </div>
 
-      <!-- Single URL row -->
       <div class="row row--vin url-row">
         <label class="field">
           <span class="lbl">Image URL</span>
@@ -544,7 +542,6 @@
         </div>
       </div>
 
-      <!-- Larger image boxes -->
       <div class="thumbs">
         @for (s of slots(); track $index) {
           @if (s) {
@@ -667,12 +664,34 @@
 
     <!-- Actions -->
     <div class="actions">
-      <button type="button" class="btn btn--ghost" [disabled]="saving()" (click)="saveDraft()">
+      <button
+        type="button"
+        class="btn btn--ghost"
+        [disabled]="saving() || deleting()"
+        (click)="saveDraft()"
+      >
         {{ saving() ? 'SAVING…' : 'SAVE DRAFT' }}
       </button>
-      <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="submit()">
-        {{ saving() ? 'SAVING…' : 'SUBMIT FOR REVIEW' }}
-      </button>
+
+      @if (canDelete()) {
+        <button
+          type="button"
+          class="btn btn--danger"
+          [disabled]="saving() || deleting()"
+          (click)="openDeleteModal()"
+        >
+          DELETE CAR
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="saving()"
+          (click)="submit()"
+        >
+          {{ saving() ? 'SAVING…' : 'SUBMIT FOR REVIEW' }}
+        </button>
+      }
     </div>
   </aside>
 
@@ -698,6 +717,48 @@
         </button>
         <button type="button" class="btn btn--primary" (click)="confirmDiscard()">
           DISCARD
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ============ DELETE-CAR MODAL ============ -->
+  @if (showDeleteModal()) {
+    <div class="modal-backdrop" (click)="cancelDelete()"></div>
+    <div
+      class="modal modal--danger"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-title"
+    >
+      <h2 class="modal__title" id="delete-title"> Delete this vehicle?</h2>
+      <p class="modal__body">
+        This action permanently removes vehicle with stock no. <strong>{{ stockNo() }}</strong>, all its files and history from the main database. This action cannot be undone!
+      </p>
+      <p class="modal__body">
+        Type <code class="confirm-phrase">{{ deleteConfirmPhrase() }}</code> to confirm:
+      </p>
+      <input
+        class="control"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Type the phrase above"
+        [formControl]="deleteConfirmDraft"
+        (keydown.enter)="confirmDelete(); $event.preventDefault()"
+        (keydown.escape)="cancelDelete()"
+      />
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancelDelete()">
+          CANCEL
+        </button>
+        <button
+          type="button"
+          class="btn btn--danger"
+          [disabled]="!deleteConfirmValid() || deleting()"
+          (click)="confirmDelete()"
+        >
+          {{ deleting() ? 'DELETING…' : 'DELETE' }}
         </button>
       </div>
     </div>
