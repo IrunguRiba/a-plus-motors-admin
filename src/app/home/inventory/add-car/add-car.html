@@ -26,7 +26,6 @@
                 autocomplete="off"
                 spellcheck="false"
                 [formControl]="stockDraft"
-                [disabled]="stockState() === 'querying'"
                 (keydown.enter)="onStockButton(); $event.preventDefault()"
               />
               <button
@@ -297,7 +296,7 @@
           <input
             class="control"
             type="text"
-            [value]="stockNo() || 'Auto-generated on save'"
+            [value]="mode() === 'add' ? (stockPreview() || 'Auto-generated on save') : (stockNo() || '—')"
             disabled
           />
         </label>
@@ -684,9 +683,9 @@
       <h2 class="modal__title" id="discard-title">Discard changes?</h2>
       <p class="modal__body">
         @if (mode() === 'edit') {
-          You have unsaved edits. Switching to new vehicle mode will discard them.
+          You have unsaved edits. Switching to add-new vehicle mode will discard them.
         } @else {
-          You have unsaved new vehicle details. Switching to edit mode will discard them.
+          You have unsaved new vehicle details. Switching to edit-vehicle mode will discard them.
         }
       </p>
       <div class="modal__actions">

@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { Subscription } from 'rxjs';
 
 import {
   AbstractControl,
@@ -88,7 +89,7 @@ export class AddCar implements OnDestroy {
     negotiable: [false],
     financing: [false],
     // notes + publishing + media
-    notes: [''],
+    notes: ['' ],
     showOnWeb: [true],
     salesperson: [this.salespeople[0]],
     reviewVideoUrl: [''],
@@ -151,6 +152,11 @@ export class AddCar implements OnDestroy {
   readonly stockError = signal('');
   readonly pendingCar = signal<CarRecord | null>(null);
 
+  /* ---------- stock-no preview (add mode, live) ---------- */
+  readonly stockPreview = signal('');
+  private stockSub?: Subscription;
+  private stockTimer?: ReturnType<typeof setTimeout>;
+
   /* ---------- discard-changes modal ---------- */
   readonly showDiscardModal = signal(false);
   private pendingAction: (() => void) | null = null;
@@ -205,6 +211,13 @@ export class AddCar implements OnDestroy {
     }
   });
 
+  constructor() {
+    const refresh = () => this.refreshStockPreview();
+    this.form.controls.make.valueChanges.subscribe(refresh);
+    this.form.controls.model.valueChanges.subscribe(refresh);
+    this.form.controls.engine.valueChanges.subscribe(refresh);
+  }
+
   /* ---------- helpers ---------- */
   fmt(n: number): string {
     return n ? n.toLocaleString('en-US') : '';
@@ -230,6 +243,68 @@ export class AddCar implements OnDestroy {
   /** True when every control belonging to the given section is valid. */
   sectionOk(keys: (keyof typeof this.f)[]): boolean {
     return keys.every((k) => this.f[k].valid);
+  }
+
+  /* ---------- coercion helpers (defensive against odd backend payloads) ---------- */
+
+  private toNum(x: unknown, fallback = 0): number {
+    if (typeof x === 'number' && Number.isFinite(x)) return x;
+    if (typeof x === 'string') {
+      const cleaned = x.replace(/[^0-9.\-]/g, '');
+      const n = cleaned ? Number(cleaned) : NaN;
+      if (Number.isFinite(n)) return n;
+    }
+    return fallback;
+  }
+
+  private toStr(x: unknown, fallback = ''): string {
+    return typeof x === 'string' ? x : x == null ? fallback : String(x);
+  }
+
+  private toBool(x: unknown, fallback = false): boolean {
+    if (typeof x === 'boolean') return x;
+    if (typeof x === 'string') return x.toLowerCase() === 'true' || x === '1';
+    if (typeof x === 'number') return x !== 0;
+    return fallback;
+  }
+
+  private toStringArray(x: unknown): string[] {
+    if (Array.isArray(x)) return x.filter((v): v is string => typeof v === 'string');
+    if (typeof x === 'string' && x.trim()) {
+      // Some backends serialize arrays as JSON strings
+      try {
+        const parsed = JSON.parse(x);
+        if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === 'string');
+      } catch {
+        /* not JSON — treat as single value */
+      }
+      return [x];
+    }
+    return [];
+  }
+
+  /* ============================================================
+     STOCK NO PREVIEW  (add mode)
+     ============================================================ */
+
+  private refreshStockPreview(): void {
+    if (this.mode() !== 'add') return;
+
+    clearTimeout(this.stockTimer);
+    this.stockTimer = setTimeout(() => {
+      const { make, model, engine } = this.form.getRawValue();
+
+      if (!make || !model || !engine) {
+        this.stockPreview.set('');
+        return;
+      }
+
+      this.stockSub?.unsubscribe();
+      this.stockSub = this.api.generateStockNo(make, model, engine).subscribe({
+        next: (sn) => this.stockPreview.set(sn),
+        error: () => this.stockPreview.set(''),
+      });
+    }, 250);
   }
 
   /* ============================================================
@@ -279,6 +354,7 @@ export class AddCar implements OnDestroy {
     this.resetForm();
     this.mode.set('add');
     this.stockState.set('idle');
+    this.stockDraft.enable();
     this.stockDraft.setValue('');
     this.stockError.set('');
     this.pendingCar.set(null);
@@ -288,6 +364,7 @@ export class AddCar implements OnDestroy {
     this.resetForm();
     this.mode.set('edit');
     this.stockState.set('editing');
+    this.stockDraft.enable();
     this.stockDraft.setValue('');
     this.stockError.set('');
     this.pendingCar.set(null);
@@ -320,6 +397,7 @@ export class AddCar implements OnDestroy {
   onStockButton(): void {
     const state = this.stockState();
 
+    // Only used if someone re-clicks while already in 'populate'
     if (state === 'populate') {
       this.applyPendingCar();
       return;
@@ -334,24 +412,30 @@ export class AddCar implements OnDestroy {
 
     this.stockError.set('');
     this.stockState.set('querying');
+    // Disable the stock input via the FormControl (avoids NG01352 warning)
+    this.stockDraft.disable();
 
     this.api
       .getCarByStockNo(stock)
       .pipe(
         finalize(() => {
+          // Always re-enable; state may still be 'querying' on error
+          this.stockDraft.enable();
           if (this.stockState() === 'querying') this.stockState.set('editing');
         }),
       )
       .subscribe({
         next: (car) => {
-          if (!car) {
+          if (!car || Object.keys(car as object).length === 0) {
             this.stockError.set('No car found with that stock number.');
             return;
           }
           this.pendingCar.set(car);
-          this.stockState.set('populate');
+          // Auto-populate in a single click — no second click required.
+          this.applyPendingCar();
         },
-        error: () => {
+        error: (err) => {
+          console.error('[stock lookup] failed:', err);
           this.stockError.set('Lookup failed. Check your connection and try again.');
         },
       });
@@ -359,75 +443,153 @@ export class AddCar implements OnDestroy {
 
   private applyPendingCar(): void {
     const car = this.pendingCar();
-    if (!car) return;
+    if (!car) {
+      this.stockError.set('No car loaded to populate.');
+      return;
+    }
 
-    // 1. Form fields
-    this.form.patchValue({
-      make: car.make ?? '',
-      model: car.model ?? '',
-      year: car.year ?? new Date().getFullYear(),
-      body: car.body ?? '',
-      colour: car.colour ?? '',
-      mileage: car.mileage ?? 0,
-      engine: car.engine ?? 0,
-      drive: car.drive ?? '2WD',
-      transmission: car.transmission ?? 'Automatic',
-      fuel: car.fuel ?? 'Petrol',
-      vin: car.vin ?? '',
-      source: car.source ?? this.sources[0],
-      branch: car.branch ?? this.branches[0],
-      cost: car.cost ?? 0,
-      price: car.price ?? 0,
-      negotiable: !!car.negotiable,
-      financing: !!car.financing,
-      notes: car.notes ?? '',
-      showOnWeb: car.showOnWeb ?? true,
-      salesperson: car.salesperson ?? this.salespeople[0],
-      reviewVideoUrl: car.reviewVideoUrl ?? '',
-    });
-    this.form.markAsPristine();
+    try {
+      const c = car as unknown as Record<string, unknown>;
 
-    // 2. Photos
-    this.photos.set(
-      (car.photos ?? []).map((url) => (typeof url === 'string' ? { url } : url)),
-    );
+      // 1. Form fields — coerced so strings/numbers/nulls all work
+      this.form.patchValue({
+        make: this.toStr(c['make']),
+        model: this.toStr(c['model']),
+        year: this.toNum(c['year'], new Date().getFullYear()),
+        body: this.toStr(c['body']),
+        colour: this.toStr(c['colour']),
+        mileage: this.toNum(c['mileage']),
+        engine: this.toNum(c['engine']),
+        drive: this.toStr(c['drive'], '2WD'),
+        transmission: this.toStr(c['transmission'], 'Automatic'),
+        fuel: this.toStr(c['fuel'], 'Petrol'),
+        vin: this.toStr(c['vin']),
+        source: this.toStr(c['source'], this.sources[0]),
+        branch: this.toStr(c['branch'], this.branches[0]),
+        cost: this.toNum(c['cost']),
+        price: this.toNum(c['price']),
+        negotiable: this.toBool(c['negotiable']),
+        financing: this.toBool(c['financing']),
+        notes: this.toStr(c['notes']),
+        showOnWeb: this.toBool(c['showOnWeb'], true),
+        salesperson: this.toStr(c['salesperson'], this.salespeople[0]),
+        reviewVideoUrl: this.toStr(c['reviewVideoUrl']),
+      });
 
-    // 3. Features
-    const feat: string[] = car.features ?? [];
-    this.selected.set(new Set(feat));
-    this.features.update((list) => {
-      const merged = [...list];
-      for (const f of feat) if (!merged.includes(f)) merged.push(f);
-      return merged;
-    });
+      // Force change detection / valueChanges to fire even if values are equal
+      this.form.updateValueAndValidity({ emitEvent: true });
+      this.form.markAsPristine();
 
-    // 4. Banks
-    this.banks.set(car.banks ?? []);
+      // 2. Photos — tolerate strings, {url} objects, or JSON-encoded arrays
+      const rawPhotos = c['photos'];
+      const photoList: Photo[] = Array.isArray(rawPhotos)
+        ? (rawPhotos as unknown[])
+            .map((p) =>
+              typeof p === 'string' ? { url: p } : (p as Photo | null | undefined),
+            )
+            .filter((p): p is Photo => !!p && typeof p.url === 'string')
+        : this.toStringArray(rawPhotos).map((url) => ({ url }));
+      this.photos.set(photoList);
 
-    // 5. Documents — mark server-side files via `serverName` and an empty File stub
-    const docsFromServer: { label: string; fileName: string }[] = car.documents ?? [];
-    this.docs.update((list) =>
-      list.map((d) => {
-        const match = docsFromServer.find((x) => x.label === d.label);
-        return match
-          ? { ...d, file: new File([], match.fileName) as File, serverName: match.fileName }
-          : d;
-      }),
-    );
+      // 3. Features
+      const feat = this.toStringArray(c['features']);
+      this.selected.set(new Set(feat));
+      this.features.update((list) => {
+        const merged = [...list];
+        for (const f of feat) if (!merged.includes(f)) merged.push(f);
+        return merged;
+      });
 
-    // 6. Identity
-    this.carId.set(car.id ?? null);
-    this.stockNo.set(car.stockNo ?? this.stockDraft.value.trim().toUpperCase());
-    this.stage.set(car.status === 'submitted' ? 'review' : 'draft');
-    this.savedAt.set('');
+      // 4. Banks
+      this.banks.set(this.toStringArray(c['banks']));
 
-    // 7. Reset lookup state
-    this.pendingCar.set(null);
-    this.stockState.set('idle');
-    this.notice.set({
-      kind: 'ok',
-      text: `Car ${this.stockNo()} loaded for editing.`,
-    });
+      // 5. Documents — the backend may send strings, objects, or JSON strings
+      const rawDocs = c['documents'];
+      let docsFromServer: { label: string; fileName: string }[] = [];
+      if (Array.isArray(rawDocs)) {
+        docsFromServer = (rawDocs as unknown[])
+          .map((d) => {
+            if (typeof d === 'string') return { label: d, fileName: d };
+            if (d && typeof d === 'object') {
+              const o = d as Record<string, unknown>;
+              return {
+                label: this.toStr(o['label']),
+                fileName: this.toStr(o['fileName'] ?? o['name'] ?? ''),
+              };
+            }
+            return null;
+          })
+          .filter(
+            (d): d is { label: string; fileName: string } => !!d && !!d.label,
+          );
+      } else if (typeof rawDocs === 'string') {
+        try {
+          const parsed = JSON.parse(rawDocs);
+          if (Array.isArray(parsed)) {
+            docsFromServer = parsed
+              .map((d: unknown) => {
+                if (typeof d === 'string') return { label: d, fileName: d };
+                if (d && typeof d === 'object') {
+                  const o = d as Record<string, unknown>;
+                  return {
+                    label: this.toStr(o['label']),
+                    fileName: this.toStr(o['fileName'] ?? o['name'] ?? ''),
+                  };
+                }
+                return null;
+              })
+              .filter(
+                (d: { label: string; fileName: string } | null): d is { label: string; fileName: string } =>
+                  !!d && !!d.label,
+              );
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      this.docs.update((list) =>
+        list.map((d) => {
+          const match = docsFromServer.find((x) => x.label === d.label);
+          return match
+            ? {
+                ...d,
+                file: new File([], match.fileName) as File,
+                serverName: match.fileName,
+              }
+            : { ...d, file: null, serverName: undefined };
+        }),
+      );
+
+      // 6. Identity
+      this.carId.set(this.toStr(c['id'] ?? c['_id']) || null);
+      const resolvedStock =
+        this.toStr(c['stockNo']) || this.stockDraft.value.trim().toUpperCase();
+      this.stockNo.set(resolvedStock);
+      this.stage.set(c['status'] === 'submitted' ? 'review' : 'draft');
+      this.savedAt.set('');
+
+      // 7. Reset lookup state — CLEAR the stock input so the user can type
+      //    a new stock number straight away.
+      this.pendingCar.set(null);
+      this.stockState.set('editing');
+      this.stockDraft.setValue('');
+      this.stockError.set('');
+      this.stockDraft.enable();
+
+      this.notice.set({
+        kind: 'ok',
+        text: `Car ${this.stockNo()} loaded for editing.`,
+      });
+    } catch (err) {
+      console.error('[applyPendingCar] failed:', err);
+      this.stockError.set('Loaded the car but could not apply all fields. Check the console.');
+      // Always reset so the UI isn't stuck
+      this.pendingCar.set(null);
+      this.stockState.set('editing');
+      this.stockDraft.setValue('');
+      this.stockDraft.enable();
+    }
   }
 
   /* ---------- VIN: decode → populate ---------- */
@@ -641,7 +803,8 @@ export class AddCar implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    /* no object URLs to revoke anymore */
+    this.stockSub?.unsubscribe();
+    clearTimeout(this.stockTimer);
   }
 
   /* ---------- documents ---------- */
@@ -724,6 +887,17 @@ export class AddCar implements OnDestroy {
     this.decoded.set(null);
     this.decodeMsg.set('');
 
+    // stock preview reset
+    this.stockPreview.set('');
+    this.stockSub?.unsubscribe();
+    clearTimeout(this.stockTimer);
+
+    // stock lookup reset
+    this.stockDraft.enable();
+    this.stockDraft.setValue('');
+    this.stockError.set('');
+    this.pendingCar.set(null);
+
     this.notice.set(null);
 
     document
@@ -734,8 +908,11 @@ export class AddCar implements OnDestroy {
   /* ---------- save / submit ---------- */
   private snapshot(status: Status): Record<string, unknown> {
     const v = this.form.getRawValue();
+    const previewStock = this.mode() === 'add' ? this.stockPreview() : this.stockNo();
+
     return {
       ...v,
+      stockNo: previewStock || undefined,
       vin: v.vin.trim().toUpperCase(),
       make: v.make.trim(),
       model: v.model.trim(),
@@ -783,6 +960,8 @@ export class AddCar implements OnDestroy {
       .filter((d) => d.file)
       .map((d) => d.file!);
 
+    const wasEdit = this.mode() === 'edit';
+
     this.saving.set(true);
     this.api
       .saveCar(this.carId(), payload, [], docFiles)
@@ -792,26 +971,46 @@ export class AddCar implements OnDestroy {
           const savedId = res.id;
           const savedStockNo = res.stockNo ?? this.stockNo();
           const savedTime = this.now();
-
-          const record = { ...payload, id: savedId, stockNo: savedStockNo };
+          const finalPayload = this.snapshot(status);
+          console.log('[save] payload:', finalPayload);
+          const record = { ...finalPayload, id: savedId, stockNo: savedStockNo };
 
           if (status === 'submitted') {
             this.submitted.emit(record);
-            const wasEdit = this.mode() === 'edit';
+
+            // After submit-for-review, clear the form
             this.resetForm();
+
+            // If we were editing, stay in edit mode ready for the next lookup
             if (wasEdit) {
               this.mode.set('edit');
               this.stockState.set('editing');
             }
+
             this.notice.set({
               kind: 'ok',
               text: `Car submitted for review${savedStockNo ? ` (${savedStockNo})` : ''}.`,
             });
           } else {
-            this.carId.set(savedId);
-            if (savedStockNo) this.stockNo.set(savedStockNo);
-            this.savedAt.set(savedTime);
-            this.notice.set({ kind: 'ok', text: 'Draft saved.' });
+            // Draft save path
+            if (wasEdit) {
+              // Editing + Save Draft → clear everything (form, photos,
+              // docs, banks, features, ids, stock, stage, notices) so the
+              // editor is blank and ready for the next stock lookup.
+              this.resetForm();
+              this.mode.set('edit');
+              this.stockState.set('editing');
+              this.notice.set({
+                kind: 'ok',
+                text: `Draft saved${savedStockNo ? ` (${savedStockNo})` : ''}.`,
+              });
+            } else {
+              // Adding + Save Draft → keep values on screen, remember the id
+              this.carId.set(savedId);
+              if (savedStockNo) this.stockNo.set(savedStockNo);
+              this.savedAt.set(savedTime);
+              this.notice.set({ kind: 'ok', text: 'Draft saved.' });
+            }
             this.draftSaved.emit(record);
           }
         },

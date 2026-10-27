@@ -2,28 +2,195 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { SaveCarResponse, DecodedVin, CarRecord } from './interfaces/car-interface';
+import { StockNoGenerator } from './helper/stock-no-generator';
 
 export type { DecodedVin } from './interfaces/car-interface';
 export type { SaveCarResponse } from './interfaces/car-interface';
 
 /** Change this to your backend base URL (or move it into your environment file). */
-export const API_URL = '/api';
+export const API_URL = 'http://localhost:4000/api/admin';
 
 const titleCase = (s: string) =>
   s
     .toLowerCase()
     .replace(/(^|[\s-])([a-z])/g, (_, a: string, b: string) => a + b.toUpperCase());
 
+/* ------------------------------------------------------------------
+   Response normalisation helpers
+   ------------------------------------------------------------------ */
+
+/** Unwrap common envelopes: { car }, { data }, { result }, { record }, { item }. */
+function unwrap<T>(res: unknown): T | null {
+  if (res == null) return null;
+  if (Array.isArray(res)) return (res[0] as T) ?? null;
+  if (typeof res !== 'object') return null;
+
+  const o = res as Record<string, unknown>;
+  for (const key of ['car', 'data', 'result', 'record', 'item', 'doc', 'vehicle']) {
+    const v = o[key];
+    if (v && typeof v === 'object' && !Array.isArray(v)) return v as T;
+  }
+  return res as T;
+}
+
+/** Pick the first defined value for any of the given keys. */
+function pick<T = unknown>(obj: Record<string, unknown>, ...keys: string[]): T | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (v !== undefined && v !== null) return v as T;
+  }
+  return undefined;
+}
+
+function asString(v: unknown, fallback = ''): string {
+  if (typeof v === 'string') return v;
+  if (v == null) return fallback;
+  return String(v);
+}
+
+function asNumber(v: unknown, fallback = 0): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const cleaned = v.replace(/[^0-9.\-]/g, '');
+    const n = cleaned ? Number(cleaned) : NaN;
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
+}
+
+function asBool(v: unknown, fallback = false): boolean {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
+  if (typeof v === 'number') return v !== 0;
+  return fallback;
+}
+
+function asStringArray(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string');
+  if (typeof v === 'string' && v.trim()) {
+    try {
+      const parsed = JSON.parse(v);
+      if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === 'string');
+    } catch {
+      /* not JSON */
+    }
+    return [v];
+  }
+  return [];
+}
+
+/**
+ * Map whatever the backend actually returns into a `CarRecord`.
+ * Tolerates wrapped payloads, `_id` vs `id`, and common field aliases.
+ */
+function normaliseCar(raw: unknown): CarRecord | null {
+  const src = unwrap<Record<string, unknown>>(raw);
+  if (!src) return null;
+
+  const photosRaw = pick<unknown>(src, 'photos', 'images', 'photoUrls');
+  const photos: string[] = Array.isArray(photosRaw)
+    ? photosRaw
+        .map((p) => (typeof p === 'string' ? p : (p as Record<string, unknown>)?.['url']))
+        .filter((p): p is string => typeof p === 'string')
+    : asStringArray(photosRaw);
+
+  const docsRaw = pick<unknown>(src, 'documents', 'docs', 'files');
+  const documents: { label: string; fileName: string }[] = Array.isArray(docsRaw)
+    ? docsRaw
+        .map((d) => {
+          if (typeof d === 'string') return { label: d, fileName: d };
+          if (d && typeof d === 'object') {
+            const o = d as Record<string, unknown>;
+            return {
+              label: asString(o['label'] ?? o['name'] ?? ''),
+              fileName: asString(o['fileName'] ?? o['filename'] ?? o['name'] ?? ''),
+            };
+          }
+          return null;
+        })
+        .filter((d): d is { label: string; fileName: string } => !!d && !!d.label)
+    : [];
+
+  return {
+    id: asString(pick(src, 'id', '_id')),
+    stockNo: asString(pick(src, 'stockNo', 'stockNumber', 'stock_no')),
+    status: (pick<'draft' | 'submitted'>(src, 'status') ?? 'draft') as 'draft' | 'submitted',
+
+    make: asString(pick(src, 'make', 'brand', 'vehicleMake')),
+    model: asString(pick(src, 'model', 'modelName', 'vehicleModel')),
+    year: asNumber(pick(src, 'year', 'modelYear', 'manufactureYear'), new Date().getFullYear()),
+    body: asString(pick(src, 'body', 'bodyType', 'bodyClass')),
+    colour: asString(pick(src, 'colour', 'color', 'exteriorColor')),
+
+    mileage: asNumber(pick(src, 'mileage', 'odometer', 'km')),
+    engine: asNumber(pick(src, 'engine', 'engineCapacity', 'cc', 'displacement')),
+    drive: asString(pick(src, 'drive', 'driveType', 'drivetrain'), '2WD'),
+    transmission: asString(
+      pick(src, 'transmission', 'gearbox', 'transmissionType'),
+      'Automatic',
+    ),
+    fuel: asString(pick(src, 'fuel', 'fuelType'), 'Petrol'),
+    vin: asString(pick(src, 'vin', 'chassisNo', 'chassisNumber', 'vinNumber')),
+
+    source: asString(pick(src, 'source', 'acquisitionSource'), 'Trade-in'),
+    branch: asString(pick(src, 'branch', 'yard', 'location'), 'Main Yard'),
+    cost: asNumber(pick(src, 'cost', 'purchaseCost', 'purchasePrice', 'buyPrice')),
+    price: asNumber(pick(src, 'price', 'sellingPrice', 'askingPrice')),
+    negotiable: asBool(pick(src, 'negotiable', 'isNegotiable')),
+    financing: asBool(pick(src, 'financing', 'isFinancing')),
+
+    notes: asString(pick(src, 'notes', 'internalNotes')),
+    showOnWeb: asBool(pick(src, 'showOnWeb', 'isPublished'), true),
+    salesperson: asString(pick(src, 'salesperson', 'assignedTo'), 'Mary Wanjiru'),
+    recommended: asBool(pick(src, 'recommended', 'isRecommended')),
+    reviewVideoUrl: asString(pick(src, 'reviewVideoUrl', 'videoUrl')),
+
+    photos,
+    features: asStringArray(pick(src, 'features', 'featureList')),
+    availabilityStatus: pick<'inStock' | 'researved'>(
+      src,
+      'availabilityStatus',
+      'availability',
+    ),
+    banks: asStringArray(pick(src, 'banks', 'financingBanks')),
+    documents,
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class CarService {
   private readonly http = inject(HttpClient);
 
+  createCar(
+    data: Record<string, unknown>,
+    photos: File[],
+    documents: File[],
+  ): Observable<SaveCarResponse> {
+    return this.http.post<SaveCarResponse>(
+      `${API_URL}/cars`,
+      this.buildFormData(data, photos, documents),
+    );
+  }
+
   /**
-   * Creates (POST /cars) or updates (PUT /cars/:id) a car.
-   * Sent as multipart/form-data:
-   *   data      -> JSON string with every field
-   *   photos    -> image files, in order (first = cover)
-   *   documents -> document files, same order as data.documents
+   * Updates a car. PATCH /cars/update
+   * Locator (stockNo | id | _id) goes in the JSON "data" payload,
+   * along with every field being changed.
+   */
+  updateCar(
+    data: Record<string, unknown>,
+    photos: File[] = [],
+    documents: File[] = [],
+  ): Observable<SaveCarResponse> {
+    return this.http.patch<SaveCarResponse>(
+      `${API_URL}/cars/update`,
+      this.buildFormData(data, photos, documents),
+    );
+  }
+
+  /**
+   * Backwards-compatible wrapper: picks create vs. update based on `id`.
+   * Prefer createCar/updateCar directly.
    */
   saveCar(
     id: string | null,
@@ -31,32 +198,84 @@ export class CarService {
     photos: File[],
     documents: File[],
   ): Observable<SaveCarResponse> {
-    const body = new FormData();
-    body.append('data', JSON.stringify(data));
-    photos.forEach((f) => body.append('photos', f, f.name));
-    documents
-      .filter((f) => f.size > 0) // skip placeholder files that only carry a server name
-      .forEach((f) => body.append('documents', f, f.name));
-
     return id
-      ? this.http.put<SaveCarResponse>(`${API_URL}/cars/${id}`, body)
-      : this.http.post<SaveCarResponse>(`${API_URL}/cars`, body);
+      ? this.updateCar({ ...data, id }, photos, documents)
+      : this.createCar(data, photos, documents);
   }
 
   /**
-   * Fetches a fully-populated car record by stock number (used by edit mode).
-   * Adjust the URL to match your backend.
+   * Fetches a car by stock number. POST /cars/find  body: { stockNo }
+   * Normalises the response into a `CarRecord` shape regardless of how the
+   * backend names or wraps fields.
    */
   getCarByStockNo(stockNo: string): Observable<CarRecord> {
-    return this.http.get<CarRecord>(
-      `${API_URL}/cars/by-stock/${encodeURIComponent(stockNo)}`,
-    );
+    return this.http
+      .post<unknown>(`${API_URL}/cars/find`, { stockNo })
+      .pipe(
+        map((res) => {
+          const car = normaliseCar(res);
+          if (!car) {
+            // Return an empty record so callers get a falsy-ish signal
+            // (component already checks Object.keys(car).length)
+            throw new Error(`No car found for stock number "${stockNo}".`);
+          }
+          return car;
+        }),
+      );
+  }
+
+  /**
+   * Fetches a car by custom id or Mongo _id. POST /cars/find
+   */
+  getCarById(id: string): Observable<CarRecord> {
+    return this.http
+      .post<unknown>(`${API_URL}/cars/find`, { id })
+      .pipe(
+        map((res) => {
+          const car = normaliseCar(res);
+          if (!car) throw new Error(`No car found for id "${id}".`);
+          return car;
+        }),
+      );
+  }
+
+  /**
+   * Search / list. POST /cars/search
+   * Empty body => all cars (paginated).
+   */
+  searchCar(body: Record<string, unknown> = {}): Observable<unknown> {
+    return this.http.post(`${API_URL}/cars/search`, body);
+  }
+
+  /**
+   * Deletes a car. DELETE /cars/delete  body: { stockNo } | { id } | { _id }
+   * (Some proxies strip DELETE bodies; if yours does, switch backend to POST.)
+   */
+  deleteCar(locator: { stockNo?: string; id?: string; _id?: string }): Observable<unknown> {
+    return this.http.delete(`${API_URL}/cars/delete`, { body: locator });
+  }
+
+  /**
+   * Returns the next stock number built client-side from the backend's
+   * live car count. Mirrors the Mongoose pre-save format exactly.
+   * GET /cars/next-sequence -> { sequence: number }
+   */
+  generateStockNo(
+    make: string,
+    model: string,
+    engine: number | string,
+  ): Observable<string> {
+    return this.http
+      .get<{ sequence: number }>(`${API_URL}/cars/next-sequence`)
+      .pipe(
+        map(({ sequence }) =>
+          StockNoGenerator.generate({ make, model, engine }, sequence),
+        ),
+      );
   }
 
   /**
    * Decodes a VIN with the free NHTSA vPIC service (CORS-enabled).
-   * To use your own backend instead, swap the URL for `${API_URL}/vin/decode/${vin}`
-   * and return the same DecodedVin shape.
    */
   decodeVin(vin: string): Observable<DecodedVin> {
     const url = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(
@@ -119,12 +338,25 @@ export class CarService {
         else if (fuel.includes('electric')) out.fuel = 'EV';
         else if (fuel.includes('gasoline')) out.fuel = 'Petrol';
 
-        // drop undefined keys so "found anything?" is just Object.keys().length
         (Object.keys(out) as (keyof DecodedVin)[]).forEach(
           (k) => out[k] === undefined && delete out[k],
         );
         return out;
       }),
     );
+  }
+
+  private buildFormData(
+    data: Record<string, unknown>,
+    photos: File[],
+    documents: File[],
+  ): FormData {
+    const body = new FormData();
+    body.append('data', JSON.stringify(data));
+    photos.forEach((f) => body.append('photos', f, f.name));
+    documents
+      .filter((f) => f.size > 0) // skip placeholder files that only carry a server name
+      .forEach((f) => body.append('documents', f, f.name));
+    return body;
   }
 }

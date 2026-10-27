@@ -60,9 +60,11 @@ export interface CarInterface {}
     notes?: string;
     showOnWeb: boolean;
     salesperson: string;
+    recommended: boolean;
     reviewVideoUrl?: string;
     photos: string[];
     features: string[];
+    availabilityStatus?: 'inStock' | 'researved';
     banks: string[];
     documents: { label: string; fileName: string }[];
   }
