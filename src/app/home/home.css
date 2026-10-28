@@ -447,7 +447,7 @@ kbd {
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 480px) {
   .top-nav-bar,
   .site-footer {
     padding-left: 16px;
