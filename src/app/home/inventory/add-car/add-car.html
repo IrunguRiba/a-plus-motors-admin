@@ -209,6 +209,7 @@
             class="control"
             type="text"
             inputmode="numeric"
+            placeholder="e.g. 2000"
             [value]="fmt(v().engine)"
             (input)="num(f.engine, $event)"
           />
@@ -663,36 +664,56 @@
     }
 
     <!-- Actions -->
-    <div class="actions">
-      <button
-        type="button"
-        class="btn btn--ghost"
-        [disabled]="saving() || deleting()"
-        (click)="saveDraft()"
-      >
-        {{ saving() ? 'SAVING…' : 'SAVE DRAFT' }}
-      </button>
+    @if (mode() === 'edit' && editModeEmpty()) {
+      <!-- Edit mode, no car loaded: no buttons, just a hint -->
+      <div class=" actions--hint" role="note">
+        <p class="actions__hint">
+          You are in <strong (click)='goToTop()'>EDIT MODE</strong>. Enter a stock number above and click
+          <strong (click)='goToTop()'>{{ stockButtonLabel() }}</strong> to load a vehicle. 
+        </p>
+      </div>
+    } @else if (mode() === 'edit') {
+      <div class="actions">
+        <button
+          type="button"
+          class="btn btn--ghost"
+          [disabled]="saving() || deleting() || !canUpdate()"
+          (click)="saveDraft()"
+        >
+          {{ saveButtonLabel() }}
+        </button>
 
-      @if (canDelete()) {
         <button
           type="button"
           class="btn btn--danger"
-          [disabled]="saving() || deleting()"
+          [disabled]="saving() || deleting() || !canDelete()"
           (click)="openDeleteModal()"
         >
           DELETE CAR
         </button>
-      } @else {
+      </div>
+    } @else {
+      <!-- Add mode: SAVE DRAFT · SUBMIT FOR REVIEW -->
+      <div class="actions">
+        <button
+          type="button"
+          class="btn btn--ghost"
+          [disabled]="saving() || deleting()"
+          (click)="saveDraft()"
+        >
+          {{ saveButtonLabel() }}
+        </button>
+
         <button
           type="button"
           class="btn btn--primary"
           [disabled]="saving()"
           (click)="submit()"
         >
-          {{ saving() ? 'SAVING…' : 'SUBMIT FOR REVIEW' }}
+          {{ submitButtonLabel() }}
         </button>
-      }
-    </div>
+      </div>
+    }
   </aside>
 
   <!-- ============ DISCARD-CHANGES MODAL ============ -->

@@ -1325,6 +1325,23 @@ button {
   height: 40px;
   font-size: 12px;
 }
+.actions--hint {
+  padding: 12px 14px;
+
+}
+
+.actions__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--blue-dark);
+}
+
+.actions__hint strong {
+  cursor: pointer;
+  color: var(--red);
+  padding: 3px;
+}
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 980px) {

@@ -79,7 +79,7 @@ export class AddCar implements OnDestroy {
 
     mileage: [0, [Validators.required, Validators.min(0), Validators.max(1000000)]],
 
-    engine: [0, [Validators.required, Validators.min(0), Validators.max(10.0)]],
+    engine: [0, [Validators.required, Validators.min(0), Validators.max(10000)]],
     drive: ['2WD'],
     transmission: ['Automatic'],
     fuel: ['Petrol'],
@@ -98,7 +98,6 @@ export class AddCar implements OnDestroy {
 
   readonly f = this.form.controls;
 
-  /** Live snapshot of the form as a signal. */
   readonly v = toSignal(
     this.form.valueChanges.pipe(
       startWith(null),
@@ -161,17 +160,11 @@ export class AddCar implements OnDestroy {
   readonly deleteConfirmDraft = new FormControl('', { nonNullable: true });
   readonly deleting = signal(false);
 
-  /**
-   * FormControl.value is NOT a signal, so a computed() reading it never
-   * re-evaluates while the user types. Bridge the control into a signal.
-   * (Must be declared after deleteConfirmDraft.)
-   */
   private readonly deleteConfirmText = toSignal(
     this.deleteConfirmDraft.valueChanges.pipe(startWith(this.deleteConfirmDraft.value)),
     { initialValue: '' },
   );
 
-  /** Phrase the user must type to confirm: "delete-<STOCKNO>" */
   readonly deleteConfirmPhrase = computed(() => {
     const stock = this.stockNo().trim().toUpperCase();
     return stock ? `delete-${stock}` : '';
@@ -182,9 +175,20 @@ export class AddCar implements OnDestroy {
     const phrase = this.deleteConfirmPhrase().toLowerCase();
     return phrase.length > 0 && typed === phrase;
   });
+
   /** True only when a car is actually loaded in edit mode. */
   readonly canDelete = computed(
     () => this.mode() === 'edit' && !!this.carId() && !!this.stockNo(),
+  );
+
+  /** Edit-mode save/update actions enabled only when a car is loaded. */
+  readonly canUpdate = computed(
+    () => this.mode() === 'edit' && !!this.carId() && !!this.stockNo(),
+  );
+
+  /** True when edit mode has no car loaded yet — show the hint, hide actions. */
+  readonly editModeEmpty = computed(
+    () => this.mode() === 'edit' && !this.carId(),
   );
 
   /* ---------- discard-changes modal ---------- */
@@ -195,7 +199,6 @@ export class AddCar implements OnDestroy {
   private stockTimer?: ReturnType<typeof setTimeout>;
   private addFeatureTimer?: ReturnType<typeof setTimeout>;
 
-  /** Host element reference — used to scope DOM queries to this component. */
   @ViewChild('host', { static: true, read: ElementRef })
   private hostView?: ElementRef<HTMLElement>;
 
@@ -225,6 +228,17 @@ export class AddCar implements OnDestroy {
     return saved ? `ADDING · SAVED ${saved}` : 'ADDING · NOT SAVED YET';
   });
 
+  /* ---------- action button labels (mode-aware) ---------- */
+  readonly saveButtonLabel = computed(() => {
+    if (this.saving()) return 'SAVING…';
+    return this.mode() === 'edit' ? 'SAVE & UPDATE' : 'SAVE DRAFT';
+  });
+
+  readonly submitButtonLabel = computed(() => {
+    if (this.saving()) return 'SAVING…';
+    return this.mode() === 'edit' ? 'UPDATE & SUBMIT' : 'SUBMIT FOR REVIEW';
+  });
+
   readonly vinButtonLabel = computed(() => {
     switch (this.vinState()) {
       case 'decoding':
@@ -250,7 +264,6 @@ export class AddCar implements OnDestroy {
   });
 
   constructor() {
-    // Leak-safe: auto-unsubscribe when the component is destroyed.
     const refresh = () => this.refreshStockPreview();
     this.form.controls.make.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -262,7 +275,6 @@ export class AddCar implements OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(refresh);
 
-    // When entering add mode, kick off a preview once.
     this.refreshStockPreview();
   }
 
@@ -292,8 +304,6 @@ export class AddCar implements OnDestroy {
     return keys.every((k) => this.f[k].valid);
   }
 
-  /* ---------- coercion helpers ---------- */
-
   private toNum(x: unknown, fallback = 0): number {
     if (typeof x === 'number' && Number.isFinite(x)) return x;
     if (typeof x === 'string') {
@@ -322,16 +332,12 @@ export class AddCar implements OnDestroy {
         const parsed = JSON.parse(x);
         if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === 'string');
       } catch {
-        /* not JSON — treat as single value */
+        /* not JSON */
       }
       return [x];
     }
     return [];
   }
-
-  /* ============================================================
-     STOCK NO PREVIEW  (add mode)
-     ============================================================ */
 
   private refreshStockPreview(): void {
     if (this.mode() !== 'add') return;
@@ -346,7 +352,6 @@ export class AddCar implements OnDestroy {
         return;
       }
 
-      // takeUntilDestroyed handles in-flight cancellation on destroy.
       this.api
         .generateStockNo(make, model, engine)
         .pipe(takeUntilDestroyed(this.destroyRef))
@@ -356,10 +361,6 @@ export class AddCar implements OnDestroy {
         });
     }, 250);
   }
-
-  /* ============================================================
-     MODE SWITCHING
-     ============================================================ */
 
   private isDirty(): boolean {
     return (
@@ -440,10 +441,6 @@ export class AddCar implements OnDestroy {
     }
   }
 
-  /* ============================================================
-     STOCK-NO LOOKUP  (edit mode)
-     ============================================================ */
-
   onStockButton(): void {
     const state = this.stockState();
 
@@ -468,12 +465,10 @@ export class AddCar implements OnDestroy {
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => {
-          // Guard against a destroyed view (signals are still safe to set,
-          // but avoid re-enabling a control the user may have navigated away from).
           try {
             this.stockDraft.enable();
           } catch {
-            /* control may be destroyed */
+            /* destroyed */
           }
           if (this.stockState() === 'querying') this.stockState.set('editing');
         }),
@@ -636,9 +631,8 @@ export class AddCar implements OnDestroy {
   }
 
   /* ============================================================
-     DELETE CAR  (edit mode only)
+     DELETE CAR
      ============================================================ */
-
   openDeleteModal(): void {
     if (!this.canDelete() || this.deleting()) return;
     this.deleteConfirmDraft.setValue('');
@@ -689,7 +683,6 @@ export class AddCar implements OnDestroy {
       });
   }
 
-  /* ---------- VIN: decode → populate ---------- */
   onVinButton(): void {
     const state = this.vinState();
     if (state === 'populate') {
@@ -764,7 +757,6 @@ export class AddCar implements OnDestroy {
     if (this.decodeMsg()) this.decodeMsg.set('');
   }
 
-  /* ---------- pricing / financing ---------- */
   toggleFinancing(): void {
     this.f.financing.setValue(!this.f.financing.value);
   }
@@ -781,7 +773,6 @@ export class AddCar implements OnDestroy {
     this.banks.update((l) => l.filter((x) => x !== b));
   }
 
-  /* ---------- features ---------- */
   toggleFeature(f: string): void {
     this.selected.update((s) => {
       const next = new Set(s);
@@ -795,7 +786,6 @@ export class AddCar implements OnDestroy {
     clearTimeout(this.addFeatureTimer);
     this.addFeatureTimer = setTimeout(() => {
       this.addFeatureTimer = undefined;
-      // Scope to this component's host instead of document.
       const root: ParentNode = this.hostView?.nativeElement ?? this.hostRef.nativeElement;
       (root.querySelector('.chip--input') as HTMLInputElement | null)?.focus();
     });
@@ -820,7 +810,6 @@ export class AddCar implements OnDestroy {
     });
   }
 
-  /* ---------- photos (URL based) ---------- */
   private isImageUrl(url: string): boolean {
     try {
       const u = new URL(url);
@@ -905,7 +894,6 @@ export class AddCar implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Clear any pending timers; subscriptions are handled by takeUntilDestroyed.
     clearTimeout(this.stockTimer);
     this.stockTimer = undefined;
     clearTimeout(this.addFeatureTimer);
@@ -913,7 +901,6 @@ export class AddCar implements OnDestroy {
     this.pendingAction = null;
   }
 
-  /* ---------- documents ---------- */
   setDoc(index: number, e: Event): void {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
@@ -932,13 +919,11 @@ export class AddCar implements OnDestroy {
     );
   }
 
-  /* ---------- review video ---------- */
   clearReviewVideo(): void {
     this.f.reviewVideoUrl.setValue('');
     this.f.reviewVideoUrl.markAsDirty();
   }
 
-  /* ---------- reset / clear form ---------- */
   resetForm(): void {
     this.form.reset({
       make: '',
@@ -988,29 +973,31 @@ export class AddCar implements OnDestroy {
     this.stockNo.set('');
     this.savedAt.set('');
     this.saving.set(false);
+    this.deleting.set(false);
 
     this.vinState.set('idle');
     this.decoded.set(null);
     this.decodeMsg.set('');
 
-    // stock preview
     this.stockPreview.set('');
     clearTimeout(this.stockTimer);
     this.stockTimer = undefined;
 
-    // stock lookup
+    clearTimeout(this.addFeatureTimer);
+    this.addFeatureTimer = undefined;
+
     try { this.stockDraft.enable(); } catch { /* destroyed */ }
     this.stockDraft.setValue('');
     this.stockError.set('');
     this.pendingCar.set(null);
 
-    // delete modal
     this.showDeleteModal.set(false);
     this.deleteConfirmDraft.setValue('');
+    this.showDiscardModal.set(false);
+    this.pendingAction = null;
 
     this.notice.set(null);
 
-    // Clear native file inputs — scoped to this component's host.
     const root: ParentNode = this.hostView?.nativeElement ?? this.hostRef.nativeElement;
     root
       .querySelectorAll<HTMLInputElement>('.docs input[type="file"]')
@@ -1043,11 +1030,25 @@ export class AddCar implements OnDestroy {
     };
   }
 
+  /** In edit mode, preserve the car's current stage; in add mode, use draft. */
+  private statusForSave(): Status {
+    if (this.mode() === 'edit') {
+      return this.stage() === 'review' || this.stage() === 'live' ? 'submitted' : 'draft';
+    }
+    return 'draft';
+  }
+
   saveDraft(): void {
-    this.persist('draft');
+    this.persist(this.statusForSave());
   }
 
   submit(): void {
+    this.persist('submitted');
+  }
+
+  /** Used by the "UPDATE & SUBMIT" button in edit mode. */
+  updateAndSubmit(): void {
+    if (!this.canUpdate()) return;
     this.persist('submitted');
   }
 
@@ -1085,40 +1086,43 @@ export class AddCar implements OnDestroy {
         next: (res) => {
           const savedId = res.id;
           const savedStockNo = res.stockNo ?? this.stockNo();
-          const savedTime = this.now();
           const finalPayload = this.snapshot(status);
           const record = { ...finalPayload, id: savedId, stockNo: savedStockNo };
 
           if (status === 'submitted') {
             this.submitted.emit(record);
-
             this.resetForm();
-
             if (wasEdit) {
               this.mode.set('edit');
               this.stockState.set('editing');
+            } else {
+              this.mode.set('add');
+              this.stockState.set('idle');
+              this.refreshStockPreview();
             }
-
             this.notice.set({
               kind: 'ok',
-              text: `Car submitted for review${savedStockNo ? ` (${savedStockNo})` : ''}.`,
+              text: wasEdit
+                ? `Update submitted for review${savedStockNo ? ` (${savedStockNo})` : ''}.`
+                : `Car submitted for review${savedStockNo ? ` (${savedStockNo})` : ''}.`,
             });
           } else {
+            this.draftSaved.emit(record);
+            this.resetForm();
             if (wasEdit) {
-              this.resetForm();
               this.mode.set('edit');
               this.stockState.set('editing');
-              this.notice.set({
-                kind: 'ok',
-                text: `Draft saved${savedStockNo ? ` (${savedStockNo})` : ''}.`,
-              });
             } else {
-              this.carId.set(savedId);
-              if (savedStockNo) this.stockNo.set(savedStockNo);
-              this.savedAt.set(savedTime);
-              this.notice.set({ kind: 'ok', text: 'Draft saved.' });
+              this.mode.set('add');
+              this.stockState.set('idle');
+              this.refreshStockPreview();
             }
-            this.draftSaved.emit(record);
+            this.notice.set({
+              kind: 'ok',
+              text: wasEdit
+                ? `Update saved${savedStockNo ? ` (${savedStockNo})` : ''}.`
+                : `Draft saved${savedStockNo ? ` (${savedStockNo})` : ''}.`,
+            });
           }
         },
         error: (err) =>
@@ -1130,8 +1134,16 @@ export class AddCar implements OnDestroy {
           }),
       });
   }
+  goToTop(): void {
+    const root: HTMLElement = this.hostView?.nativeElement ?? this.hostRef.nativeElement;
+    root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+      const input = root.querySelector<HTMLInputElement>('.title-tab__input');
+      input?.focus();
+      input?.select();
+    }, 300);
+  }
 
-  /* ---------- legacy hook ---------- */
   editCarDetails(): void {
     this.clickEdit();
   }
