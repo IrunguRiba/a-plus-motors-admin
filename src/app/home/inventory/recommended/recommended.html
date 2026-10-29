@@ -77,20 +77,21 @@
       }
     </div>
 
-    <!-- suggested -->
+    <!-- suggested: sorted most-recommended first (leftmost) -->
     <div class="sec-row" style="--i:3">
       <h2 class="sec">✦ SUGGESTED TO FEATURE</h2>
-      <span class="note">Based on enquiries, stock age and margin</span>
-    </div>
+      <span class="note">Ranked right → left by number of reasons: enquiries, stock age, margin, newness</span>
+        </div>
 
     <div class="suggest" style="--i:3">
-      @for (s of suggested(); track s.stock) {
+      @for (s of suggested(); track s.stock; let i = $index) {
         <article class="s-card"
                  role="button"
                  tabindex="0"
                  (click)="openDetails(s.stock, 'suggested', $event)"
                  (keydown.enter)="openDetails(s.stock, 'suggested', $event)">
           <div class="hero">
+         
             <span class="tag" [class]="'tag tag--' + s.tone">{{ s.tag }}</span>
             <ng-container *ngTemplateOutlet="thumb; context: { car: s.car, size: 'md' }"></ng-container>
           </div>
@@ -280,9 +281,18 @@
 
       <div class="modal-body">
         @if (isSuggestedDetail()) {
-          <div class="reason-row">
-            <span class="tag" [class]="'tag tag--' + reason(d).tone">{{ reason(d).tag }}</span>
-            <span class="reason-note">{{ reason(d).note }}</span>
+          <div class="reason-block">
+            @if (reasons(d).length > 1) {
+              <span class="rec-badge">★ MOST RECOMMENDED · {{ reasons(d).length }} REASONS</span>
+            }
+            <ul class="reason-list">
+              @for (r of reasons(d); track r.tag) {
+                <li class="reason-item">
+                  <span class="tag" [class]="'tag tag--' + r.tone">{{ r.tag }}</span>
+                  <span class="reason-note">{{ r.note }}</span>
+                </li>
+              }
+            </ul>
           </div>
         }
 

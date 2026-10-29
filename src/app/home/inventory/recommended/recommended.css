@@ -206,8 +206,15 @@ button:disabled { cursor: default; }
 .thumb .car-img { width: 100%; height: 100%; }
 
 /* ===== suggestion cards ===== */
-.suggest { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.suggest {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  direction: rtl;   /* ← most recommended first = far right */
+}
+
 .s-card {
+  direction: ltr;
   overflow: hidden;
   color: var(--ink);
   background: var(--surface);
@@ -229,6 +236,9 @@ button:disabled { cursor: default; }
 }
 .hero svg { width: 82px; height: auto; margin-top: 6px; }
 .hero svg * { vector-effect: non-scaling-stroke; stroke-width: 1.3; }
+
+/* rank badge — shows recommended order (1 = most recommended) */
+
 
 /* tag — bordered */
 .tag {
@@ -542,19 +552,29 @@ button:disabled { cursor: default; }
 
 .modal-body { padding: 14px 16px 16px; display: grid; gap: 12px; }
 
-/* Reason row: tag + note on one line */
-.reason-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+/* Reason block: all reasons, with a "most recommended" badge when 2+ */
+.reason-block {
+  display: grid;
+  gap: 8px;
   padding: 8px 0;
   border-top: 1px solid var(--line-soft);
   border-bottom: 1px solid var(--line-soft);
 }
-/* .tag inside .reason-row uses the shared tag styles (tag--blue/amber/green)
-   but must stay in normal flow, not absolutely positioned. */
-.reason-row .tag {
+.rec-badge {
+  justify-self: start;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--on-accent);
+  background: var(--blue);
+  border: 1px solid var(--blue);
+  border-radius: 2px;
+}
+.reason-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.reason-item { display: flex; align-items: center; gap: 10px; }
+/* .tag inside .reason-item uses shared tag styles but must sit in normal flow. */
+.reason-item .tag {
   position: static;
   top: auto;
   left: auto;

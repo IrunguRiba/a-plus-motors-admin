@@ -32,10 +32,14 @@ interface Car {
   onLot: number;
   status: Status;
   image: string | null;
+  /** Recommendation score: weighted count of reasons this car qualifies for. */
+  score: number;
   record: CarRecord; // full backend record, used by the details popup
 }
 
 interface Chip { key: string; label: string; group: 'status' | 'type'; }
+
+interface Reason { tag: string; tone: string; note: string; }
 
 interface Suggestion {
   stock: string;
@@ -47,6 +51,16 @@ interface Suggestion {
 
 const titleCase = (s: string) =>
   s.toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a: string, b: string) => a + b.toUpperCase());
+
+/** Weight per reason tag — higher = stronger recommendation signal. */
+const REASON_WEIGHT: Record<string, number> = {
+  'SELLING FAST': 3,
+  'HIGH MARGIN': 3,
+  'AGING STOCK': 2,
+  'NEW ARRIVAL': 2,
+  'GOOD MARGIN': 1,
+  'ENQUIRIES': 1,
+};
 
 @Component({
   selector: 'app-recommended',
@@ -98,6 +112,7 @@ export class Recommended {
 
   readonly sortOptions = [
     { key: 'newest', label: 'Newest' },
+    { key: 'recommended', label: 'Most recommended' },
     { key: 'price', label: 'Price' },
     { key: 'margin', label: 'Margin' },
     { key: 'enq', label: 'Enquiries' },
@@ -157,6 +172,8 @@ export class Recommended {
       .subscribe({
         next: ({ cars, pagination }) => {
           const view = cars.map((c) => this.toView(c));
+          // Second pass: score depends on the fully-built view-model.
+          view.forEach((v) => (v.score = this.score(v)));
           this.cars.set(view);
           this.serverPages.set(pagination.pages);
 
@@ -205,6 +222,7 @@ export class Recommended {
       onLot: Math.max(0, Math.floor((Date.now() - created) / 86_400_000)),
       status: c.availabilityStatus === 'reserved' ? 'Reserved' : 'In stock',
       image: this.firstImage(c),
+      score: 0, // filled in by the caller after the view-model is built
       record: c,
     };
   }
@@ -282,43 +300,48 @@ export class Recommended {
     const s = this.sort();
     if (s === 'newest') return [...list].sort((a, b) => a.onLot - b.onLot);
     const pick: Record<string, (c: Car) => number> = {
-      price: (c) => c.price, margin: (c) => c.margin, enq: (c) => c.enq, lot: (c) => c.onLot,
+      recommended: (c) => c.score,
+      price: (c) => c.price,
+      margin: (c) => c.margin,
+      enq: (c) => c.enq,
+      lot: (c) => c.onLot,
     };
     return [...list].sort((a, b) => pick[s](b) - pick[s](a));
   });
 
   /**
    * Candidate pool for the ✦ SUGGESTED TO FEATURE section.
-   * Ranked by enquiries, age, margin and recency. Cars already in the
-   * Recommended panel are excluded so a car can never be recommended twice.
+   * Every car is scored by ALL the reasons it qualifies for (weighted), so a
+   * car that is new AND high-margin AND selling fast outranks a car with a
+   * single reason. Sorted descending: index 0 = most recommended (leftmost).
+   * Cars already in the Recommended panel are excluded.
    */
   suggested = computed<Suggestion[]>(() => {
     const feat = new Set(this.featuredIds());
     const pool = this.cars().filter((c) => !feat.has(c.stock));
     if (!pool.length) return [];
 
-    const used = new Set<string>();
-    const out: Suggestion[] = [];
-    const best = (fn: (c: Car) => number) => [...pool].sort((a, b) => fn(b) - fn(a))[0];
-    const add = (car: Car | undefined, tag: string, tone: string, note: string) => {
-      if (!car || used.has(car.stock)) return;
-      used.add(car.stock);
-      out.push({ stock: car.stock, tag, tone, note, car });
-    };
+    const scored = pool
+      .map((car) => ({ car, list: this.reasons(car), score: car.score }))
+      .filter((x) => x.list.length > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;             // most reasons first
+        if (b.car.margin !== a.car.margin) return b.car.margin - a.car.margin;
+        if (b.car.enq !== a.car.enq) return b.car.enq - a.car.enq;
+        if (a.car.onLot !== b.car.onLot) return a.car.onLot - b.car.onLot;
+        return a.car.stock.localeCompare(b.car.stock);                // final stable tie-break
+      });
 
-    const hot = best((c) => c.enq);
-    if (hot && hot.enq > 0) add(hot, 'SELLING FAST', 'blue', `${hot.enq} enquiries`);
-
-    const aged = best((c) => c.onLot);
-    if (aged && aged.onLot >= 60) add(aged, 'AGING STOCK', 'amber', `${aged.onLot} days on lot`);
-
-    const margin = best((c) => c.margin);
-    add(margin, 'HIGH MARGIN', 'green', margin ? `Margin ${margin.margin}%` : '');
-
-    const fresh = best((c) => -c.onLot);
-    add(fresh, 'NEW ARRIVAL', 'blue', fresh ? this.addedNote(fresh.onLot) : '');
-
-    return out.slice(0, 4);
+    return scored.slice(0, 4).map(({ car, list }) => {
+      const p = this.primaryReason(car);
+      return {
+        stock: car.stock,
+        tag: list.length > 1 ? `${p.tag} · ${list.length} REASONS` : p.tag,
+        tone: p.tone,
+        note: list.map((r) => r.note).join(' · '),
+        car,
+      };
+    });
   });
 
   /** Car currently shown in the details popup. */
@@ -380,13 +403,52 @@ export class Recommended {
     return days === 0 ? 'Added today' : `Added ${days} day${days === 1 ? '' : 's'} ago`;
   }
 
-  /** Why a car is worth recommending (shown in the details popup). */
-  reason(c: Car): { tag: string; tone: string; note: string } {
-    if (c.enq >= 3) return { tag: 'SELLING FAST', tone: 'blue', note: `${c.enq} enquiries this week` };
-    if (c.onLot >= 60) return { tag: 'AGING STOCK', tone: 'amber', note: `${c.onLot} days on lot — feature to move it` };
-    if (c.margin >= 14) return { tag: 'HIGH MARGIN', tone: 'green', note: `Margin ${c.margin}%` };
-    if (c.onLot <= 7) return { tag: 'NEW ARRIVAL', tone: 'blue', note: this.addedNote(c.onLot) };
-    return { tag: 'IN STOCK', tone: 'blue', note: 'Available now and ready for viewing' };
+  /* ---------- recommendation reasons ---------- */
+  /**
+   * ALL reasons a car is worth recommending. A car can qualify on multiple
+   * grounds (e.g. new arrival + high margin + selling fast); each is listed.
+   */
+  reasons(c: Car): Reason[] {
+    const list: Reason[] = [];
+
+    if (c.enq >= 3) {
+      list.push({ tag: 'SELLING FAST', tone: 'blue', note: `${c.enq} enquiries this week` });
+    } else if (c.enq > 0) {
+      list.push({ tag: 'ENQUIRIES', tone: 'blue', note: `${c.enq} enquiries` });
+    }
+
+    if (c.onLot >= 60) {
+      list.push({ tag: 'AGING STOCK', tone: 'amber', note: `${c.onLot} days on lot — feature to move it` });
+    }
+
+    if (c.margin >= 14) {
+      list.push({ tag: 'HIGH MARGIN', tone: 'green', note: `Margin ${c.margin}%` });
+    } else if (c.margin >= 10) {
+      list.push({ tag: 'GOOD MARGIN', tone: 'green', note: `Margin ${c.margin}%` });
+    }
+
+    if (c.onLot <= 7) {
+      list.push({ tag: 'NEW ARRIVAL', tone: 'blue', note: this.addedNote(c.onLot) });
+    }
+
+    return list;
+  }
+
+  /** Weighted recommendation score — more (and stronger) reasons = higher. */
+  private score(c: Car): number {
+    return this.reasons(c).reduce((n, r) => n + (REASON_WEIGHT[r.tag] ?? 1), 0);
+  }
+
+  /**
+   * Primary tag shown on cards / the modal header. The highest-weight reason
+   * wins; falls back to a neutral "IN STOCK" tag when none apply.
+   */
+  primaryReason(c: Car): Reason {
+    const list = this.reasons(c);
+    if (!list.length) return { tag: 'IN STOCK', tone: 'blue', note: 'Available now and ready for viewing' };
+    return [...list].sort(
+      (a, b) => (REASON_WEIGHT[b.tag] ?? 1) - (REASON_WEIGHT[a.tag] ?? 1)
+    )[0];
   }
 
   /* ---------- details popup ---------- */
@@ -596,10 +658,10 @@ export class Recommended {
   /* ---------- export ---------- */
   exportCsv(): void {
     const sel = this.selected();
-    const header = ['Stock', 'Name', 'Price (KES)', 'Margin %', 'Enquiries', 'Days on lot', 'Status'];
+    const header = ['Stock', 'Name', 'Price (KES)', 'Margin %', 'Enquiries', 'Days on lot', 'Status', 'Score'];
     const lines = this.cars()
       .filter((c) => sel.has(c.stock))
-      .map((c) => [c.stock, c.name, c.price, c.margin, c.enq, c.onLot, c.status]);
+      .map((c) => [c.stock, c.name, c.price, c.margin, c.enq, c.onLot, c.status, c.score]);
     const csv = [header, ...lines]
       .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
       .join('\n');
