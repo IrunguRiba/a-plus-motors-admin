@@ -187,7 +187,10 @@ button:disabled { cursor: default; }
 .sec-row--all { margin-top: 20px; margin-bottom: 8px; }
 .sec { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: .12em; color: var(--ink); }
 .note { font-size: 13px; font-weight: 400; color: var(--ink); }
-
+.note span{
+  color: var(--blue-dark);
+  font-size: 20px;
+}
 .sort { position: relative; font-size: 13px; font-weight: 400; color: var(--ink); cursor: pointer; }
 .sort b { font-weight: 700; color: var(--ink); }
 .sort select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
