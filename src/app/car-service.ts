@@ -1,11 +1,18 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { SaveCarResponse, DecodedVin, CarRecord } from './interfaces/car-interface';
+import {
+  SaveCarResponse,
+  DecodedVin,
+  CarRecord,
+  CarListResult,
+  Pagination,
+} from './interfaces/car-interface';
 import { StockNoGenerator } from './helper/stock-no-generator';
 
 export type { DecodedVin } from './interfaces/car-interface';
 export type { SaveCarResponse } from './interfaces/car-interface';
+export type { CarListResult, Pagination } from './interfaces/car-interface';
 export const API_URL = 'https://a-plus-motors-admin-backend.onrender.com/api/admin';
 
 const titleCase = (s: string) =>
@@ -76,6 +83,7 @@ function asStringArray(v: unknown): string[] {
   }
   return [];
 }
+
 function normaliseCar(raw: unknown): CarRecord | null {
   const src = unwrap<Record<string, unknown>>(raw);
   if (!src) return null;
@@ -140,14 +148,54 @@ function normaliseCar(raw: unknown): CarRecord | null {
 
     photos,
     features: asStringArray(pick(src, 'features', 'featureList')),
-    availabilityStatus: pick<'inStock' | 'researved'>(
+    availabilityStatus: pick<'inStock' | 'reserved'>(
       src,
       'availabilityStatus',
       'availability',
     ),
     banks: asStringArray(pick(src, 'banks', 'financingBanks')),
     documents,
+    createdAt: asString(pick(src, 'createdAt')) || undefined,
+    updatedAt: asString(pick(src, 'updatedAt')) || undefined,
   };
+}
+
+/**
+ * Normalises a list response such as
+ * { success, pagination: {...}, count, cars: [...] }
+ * (also tolerates a bare array or { data | items | results: [...] }).
+ */
+function normaliseCarList(raw: unknown): CarListResult {
+  let rows: unknown[] = [];
+  let paginationRaw: Record<string, unknown> = {};
+  let countRaw: unknown;
+
+  if (Array.isArray(raw)) {
+    rows = raw;
+  } else if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>;
+    for (const key of ['cars', 'data', 'items', 'results', 'vehicles']) {
+      if (Array.isArray(o[key])) {
+        rows = o[key] as unknown[];
+        break;
+      }
+    }
+    if (o['pagination'] && typeof o['pagination'] === 'object') {
+      paginationRaw = o['pagination'] as Record<string, unknown>;
+    }
+    countRaw = o['count'];
+  }
+
+  const cars = rows.map((r) => normaliseCar(r)).filter((c): c is CarRecord => !!c);
+
+  const pagination: Pagination = {
+    total: asNumber(paginationRaw['total'], cars.length),
+    page: asNumber(paginationRaw['page'], 1),
+    limit: asNumber(paginationRaw['limit'], cars.length),
+    pages: asNumber(paginationRaw['pages'], 1),
+  };
+
+  return { cars, pagination, count: asNumber(countRaw, cars.length) };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -208,9 +256,40 @@ export class CarService {
         }),
       );
   }
+
+  /** Raw search (unchanged) – returns the backend response as-is. */
   searchCar(body: Record<string, unknown> = {}): Observable<unknown> {
     return this.http.post(`${API_URL}/cars/search`, body);
   }
+
+  /** Search returning normalised CarRecord[] plus pagination. */
+  searchCars(body: Record<string, unknown> = {}): Observable<CarListResult> {
+    return this.http
+      .post<unknown>(`${API_URL}/cars/search`, body)
+      .pipe(map((res) => normaliseCarList(res)));
+  }
+
+  /**
+   * Cars flagged `recommended` and visible on the website.
+   * The filter is sent to the backend AND re-applied client-side, so it
+   * still works if the backend ignores unknown filter keys.
+   */
+  getRecommendedCars(limit = 10): Observable<CarRecord[]> {
+    return this.http
+      .post<unknown>(`${API_URL}/cars/search`, {
+        recommended: true,
+        showOnWeb: true,
+        limit,
+      })
+      .pipe(
+        map((res) =>
+          normaliseCarList(res)
+            .cars.filter((c) => c.recommended && c.showOnWeb)
+            .slice(0, limit),
+        ),
+      );
+  }
+
   deleteCar(locator: { stockNo?: string; id?: string; _id?: string }): Observable<unknown> {
     return this.http.delete(`${API_URL}/cars/delete`, { body: locator });
   }
