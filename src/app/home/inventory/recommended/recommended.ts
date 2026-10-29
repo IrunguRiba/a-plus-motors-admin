@@ -464,10 +464,6 @@ export class Recommended {
     this.setStatus([...this.selected()], 'Reserved');
   }
 
-  markInStock(): void {
-    this.setStatus([...this.selected()], 'In stock');
-  }
-
   toggleReserved(id: string): void {
     const car = this.cars().find((c) => c.stock === id);
     if (car) this.setStatus([id], car.status === 'Reserved' ? 'In stock' : 'Reserved');
