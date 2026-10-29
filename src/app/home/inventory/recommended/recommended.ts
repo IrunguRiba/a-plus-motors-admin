@@ -460,8 +460,14 @@ export class Recommended {
   }
 
   /* ---------- status ---------- */
+  /** Bulk action: mark every selected car as Reserved. */
   markReserved(): void {
     this.setStatus([...this.selected()], 'Reserved');
+  }
+
+  /** Bulk action: mark every selected car back as In stock. */
+  markInStock(): void {
+    this.setStatus([...this.selected()], 'In stock');
   }
 
   toggleReserved(id: string): void {
