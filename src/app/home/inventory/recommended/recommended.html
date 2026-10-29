@@ -271,7 +271,7 @@
       <header class="modal-head">
         <div>
           <h3 id="modal-title">
-            {{ d.name }}@if (isSuggestedDetail()) {<span class="featured-badge" > · FEATURED FOR RECOMMENDATION</span>}
+            {{ d.name }}@if (isSuggestedDetail()) {<span class="featured-badge"> · FEATURED FOR RECOMMENDATION</span>}
           </h3>
           <p class="modal-sub">{{ shortStock(d.stock) }} · {{ fmt(d.km) }} km · {{ d.body }}</p>
         </div>
@@ -281,7 +281,7 @@
       <div class="modal-body">
         @if (isSuggestedDetail()) {
           <div class="reason-row">
-            <span class="reason-tag ">{{ reason(d).tag }}</span>
+            <span class="tag" [class]="'tag tag--' + reason(d).tone">{{ reason(d).tag }}</span>
             <span class="reason-note">{{ reason(d).note }}</span>
           </div>
         }

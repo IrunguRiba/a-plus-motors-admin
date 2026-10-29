@@ -558,6 +558,9 @@ button:disabled { cursor: default; }
   position: static;
   top: auto;
   left: auto;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 4px 10px;
 }
 .reason-note { font-size: 13px; color: var(--ink); }
 
