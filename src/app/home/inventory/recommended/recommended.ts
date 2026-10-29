@@ -67,7 +67,14 @@ export class Recommended {
   private readonly carService = inject(CarService);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Last-saved server state per stock no, used to work out what changed on publish. */
+  /**
+   * Last-saved server state per stock no. `recommended` is what the DB
+   * currently has; `status` is the last-synced availability.
+   *
+   * `recommended` is written immediately on feature/unfeature (no publish
+   * step), so `original.recommended` is kept in sync right after each write.
+   * `status` still goes through the Publish button.
+   */
   private original = new Map<string, { recommended: boolean; status: Status }>();
 
   /* ---------- static ---------- */
@@ -81,7 +88,7 @@ export class Recommended {
     { key: 'all', label: 'All cars', group: 'status' },
     { key: 'stock', label: 'In stock', group: 'status' },
     { key: 'reserved', label: 'Reserved', group: 'status' },
-    { key: 'featured', label: 'Featured', group: 'status' },
+    { key: 'featured', label: 'Recommended', group: 'status' },
     { key: 'SUV', label: 'SUVs', group: 'type' },
     { key: 'Sedan', label: 'Sedans', group: 'type' },
     { key: 'Hatchback', label: 'Hatchbacks', group: 'type' },
@@ -106,6 +113,12 @@ export class Recommended {
 
   /* ---------- state ---------- */
   cars = signal<Car[]>([]);
+  /**
+   * Cars currently in the Recommended panel. Hydrated from the backend's
+   * `recommended: true` flag on load so published recommendations survive a
+   * reload. If the DB has no recommended cars, this starts empty — there are
+   * no pre-seeded / default featured slots.
+   */
   featuredIds = signal<string[]>([]);
   selected = signal<Set<string>>(new Set());
 
@@ -147,13 +160,17 @@ export class Recommended {
           this.cars.set(view);
           this.serverPages.set(pagination.pages);
 
-          // Backend `recommended` flag drives the featured slots.
-          this.featuredIds.set(
-            cars.filter((c) => c.recommended).slice(0, this.maxSlots).map((c) => c.stockNo),
-          );
+          // Only cars the DB already marks as recommended. If none, the
+          // Recommended panel starts completely empty (no defaults).
+          const savedRecommended = cars
+            .filter((c) => c.recommended === true)
+            .slice(0, this.maxSlots)
+            .map((c) => c.stockNo);
+          this.featuredIds.set(savedRecommended);
 
+          // Baseline. `recommended` mirrors the DB; status too.
           this.original = new Map(
-            cars.map((c, i) => [c.stockNo, { recommended: c.recommended, status: view[i].status }]),
+            cars.map((c, i) => [c.stockNo, { recommended: c.recommended === true, status: view[i].status }]),
           );
 
           const latest = cars
@@ -270,7 +287,11 @@ export class Recommended {
     return [...list].sort((a, b) => pick[s](b) - pick[s](a));
   });
 
-  /** Suggestions derived from live data (non-featured cars only). */
+  /**
+   * Candidate pool for the ✦ SUGGESTED TO FEATURE section.
+   * Ranked by enquiries, age, margin and recency. Cars already in the
+   * Recommended panel are excluded so a car can never be recommended twice.
+   */
   suggested = computed<Suggestion[]>(() => {
     const feat = new Set(this.featuredIds());
     const pool = this.cars().filter((c) => !feat.has(c.stock));
@@ -428,7 +449,12 @@ export class Recommended {
     });
   }
 
-  /* ---------- featuring ---------- */
+  /* ---------- featuring (immediate DB persistence) ---------- */
+  /**
+   * Adds a car to the Recommended panel and immediately writes
+   * `recommended: true` to the DB. Rolls back the panel state if the write
+   * fails. There is no Publish step for the recommended flag.
+   */
   feature(id: string): void {
     const ids = this.featuredIds();
     if (ids.includes(id)) return;
@@ -436,13 +462,23 @@ export class Recommended {
       this.notice.set('All 6 slots are in use. Remove a car first.');
       return;
     }
+    const car = this.cars().find((c) => c.stock === id);
+    if (!car) return;
+
     this.touch();
     this.featuredIds.set([...ids, id]);
+    this.persistRecommended(car, true);
   }
 
+  /**
+   * Removes a car from the Recommended panel and immediately writes
+   * `recommended: false` to the DB. Rolls back if the write fails.
+   */
   unfeature(id: string): void {
+    const car = this.cars().find((c) => c.stock === id);
     this.touch();
     this.featuredIds.update((l) => l.filter((x) => x !== id));
+    if (car) this.persistRecommended(car, false);
   }
 
   toggleFeature(id: string): void {
@@ -454,9 +490,41 @@ export class Recommended {
   }
 
   bulkUnfeature(): void {
-    const sel = this.selected();
-    this.touch();
-    this.featuredIds.update((l) => l.filter((x) => !sel.has(x)));
+    [...this.selected()].forEach((id) => this.unfeature(id));
+  }
+
+  /**
+   * Writes the `recommended` flag straight to the DB. Called by feature /
+   * unfeature / drag reorder so the DB mirrors the right panel immediately.
+   * Syncs `original` on success and restores the in-memory state on failure.
+   */
+  private persistRecommended(car: Car, recommended: boolean): void {
+    this.carService
+      .updateCar({
+        id: car.id,
+        _id: car.id,
+        stockNo: car.stock,
+        recommended,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          const o = this.original.get(car.stock);
+          if (o) this.original.set(car.stock, { ...o, recommended });
+        },
+        error: (err: { status?: number; error?: { message?: string; error?: string } }) => {
+          // Roll back the in-memory panel so it matches the DB again.
+          if (recommended) {
+            this.featuredIds.update((l) => l.filter((x) => x !== car.stock));
+          } else if (!this.featuredIds().includes(car.stock)) {
+            this.featuredIds.update((l) => [...l, car.stock]);
+          }
+          console.error('Recommended update failed', err);
+          const detail = err?.error?.message ?? err?.error?.error ?? '';
+          const code = err?.status ? ` (HTTP ${err.status})` : '';
+          this.notice.set(`Could not update the recommended flag${code}${detail ? ': ' + detail : ''}`);
+        },
+      });
   }
 
   /* ---------- status ---------- */
@@ -544,6 +612,10 @@ export class Recommended {
   }
 
   /* ---------- drag to reorder ---------- */
+  /**
+   * Reorders the Recommended panel. Order is a client-side concern only —
+   * the DB stores a boolean, not a rank — so nothing is persisted here.
+   */
   drop(to: number): void {
     const from = this.dragFrom();
     this.dragFrom.set(null);
@@ -554,14 +626,19 @@ export class Recommended {
     this.featuredIds.set(ids);
   }
 
-  /* ---------- publish ---------- */
+  /* ---------- publish (status only — recommended is written inline) ---------- */
+  /**
+   * Publish now only handles availability status. The `recommended` flag is
+   * written to the DB the moment a car enters or leaves the Recommended
+   * panel (see persistRecommended), so there is nothing recommended-related
+   * to send here.
+   */
   publish(): void {
     if (this.publishing()) return;
 
-    const featured = new Set(this.featuredIds());
     const changed = this.cars().filter((c) => {
       const o = this.original.get(c.stock);
-      return !!o && (o.recommended !== featured.has(c.stock) || o.status !== c.status);
+      return !!o && o.status !== c.status;
     });
 
     if (!changed.length) {
@@ -576,17 +653,17 @@ export class Recommended {
           id: c.id,
           _id: c.id,
           stockNo: c.stock,
-          recommended: featured.has(c.stock),
-          availabilityStatus: c.status === 'Reserved' ? 'researved' : 'inStock',
+          availabilityStatus: c.status === 'Reserved' ? 'reserved' : 'inStock',
         }),
       ),
     )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
-          changed.forEach((c) =>
-            this.original.set(c.stock, { recommended: featured.has(c.stock), status: c.status }),
-          );
+          changed.forEach((c) => {
+            const o = this.original.get(c.stock);
+            if (o) this.original.set(c.stock, { ...o, status: c.status });
+          });
           this.publishing.set(false);
           this.finishPublish();
         },
