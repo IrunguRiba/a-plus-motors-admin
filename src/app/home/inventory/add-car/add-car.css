@@ -464,6 +464,9 @@ button {
     border-color 0.25s;
 }
 .margin--neg {
+  padding:0 12px;
+  font-size: 0.9em;
+  font-weight: 500;
   color: var(--down);
   background: var(--red-tint);
   border-color: var(--down);
