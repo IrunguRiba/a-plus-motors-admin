@@ -202,7 +202,7 @@ button { cursor: pointer; }
 .menu button:hover { background: var(--surface-alt); }
 
 .scroll { margin-top: 8px; overflow-x: auto; }
-.table { min-width: 1040px; }
+.table { min-width: 1440px; }
 
 .trow {
   display: grid;
