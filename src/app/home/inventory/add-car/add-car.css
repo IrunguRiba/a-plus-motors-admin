@@ -452,13 +452,12 @@ button {
   display: flex;
   align-items: center;
   height: 42px;
-  padding: 0 14px;
-  font-size: 16px;
+  padding: 10px 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--green);
-  background: var(--green-tint);
-  border: 1.5px solid var(--green-line);
-  border-radius: 4px;
+  border: 1px solid var(--green-line);
+  border-radius: 1px;
   transition:
     background 0.25s,
     color 0.25s,
