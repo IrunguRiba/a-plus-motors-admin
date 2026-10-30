@@ -452,9 +452,9 @@ button {
   display: flex;
   align-items: center;
   height: 42px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 600;
+  padding:0 12px;
+  font-size: 0.9em;
+  font-weight: 500;
   color: var(--green);
   border: 1px solid var(--green-line);
   border-radius: 1px;
