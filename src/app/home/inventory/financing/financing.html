@@ -1,4 +1,3 @@
-<!-- Reusable car outlines -->
 <ng-template #car>
   <svg viewBox="0 0 53 22" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
     <path d="M5 15H3.500v-3c0-1 .7-1.800 1.700-2L12 9l4.500-4.300c.4-.4 1-.7 1.600-.7h12.800c.6 0 1.200.3 1.600.7L36.500 9l11.300 1c1 .2 1.700 1 1.700 2v3H48"/>
@@ -133,9 +132,13 @@
               <span class="price">KES {{ fmt(r.price) }}</span>
 
               <span class="bank" [attr.title]="banksInline(r)">
-                @for (b of r.banks; track b; let i = $index) {
-                  @if (i > 0) { <span class="bank-sep">·</span> }
-                  <i class="dot" [style.background]="color(b)"></i>{{ b }}
+                @for (b of r.banks; track b) {
+                  <span class="bank-chip" [class.bank-chip--primary]="b === r.bank">
+                    <i class="dot" [style.background]="color(b)"></i>
+                    <span class="bank-name">{{ b }}</span>
+                    @if (b !== r.bank) {
+                    }
+                  </span>
                 }
               </span>
 
@@ -190,9 +193,9 @@
 
             <label class="pick pick--sm">
               <span>{{ c.bank }} ▾</span>
-              <select [value]="c.bank" (change)="setCandidateBank(c.stock, val($event))" aria-label="Choose bank">
+              <select (change)="setCandidateBank(c.stock, val($event))" aria-label="Choose bank">
                 @for (b of banks(); track b) {
-                  <option [value]="b">{{ b }}</option>
+                  <option [value]="b" [selected]="b === c.bank">{{ b }}</option>
                 }
               </select>
             </label>
@@ -207,7 +210,6 @@
   }
 </section>
 
-<!-- ===== EDIT TERMS MODAL ===== -->
 @if (editOpen()) {
   <div class="overlay" (click)="closeEdit()">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-title"
@@ -263,7 +265,6 @@
   </div>
 }
 
-<!-- ===== DETAILS MODAL (read-only) ===== -->
 @if (detailsOpen() && detailsRow(); as d) {
   <div class="overlay" (click)="closeDetails()">
     <div class="modal modal--details" role="dialog" aria-modal="true" aria-labelledby="details-title"
@@ -281,11 +282,18 @@
           <h4 class="details-heading">Financing partners</h4>
           <ul class="details-banks">
             @for (b of d.banks; track b) {
-              <li class="details-bank">
+              <li class="details-bank" [class.details-bank--primary]="b === d.bank">
                 <i class="dot" [style.background]="color(b)"></i>
-                <span class="details-bank-name">{{ b }}</span>
-                @if (partnerFor(b)?.fullName) {
-                  <span class="details-bank-full">{{ partnerFor(b)?.fullName }}</span>
+                <div class="details-bank-text">
+                  <span class="details-bank-name">{{ b }}</span>
+                  @if (partnerFor(b)?.fullName) {
+                    <span class="details-bank-full">{{ partnerFor(b)?.fullName }}</span>
+                  }
+                </div>
+                @if (b === d.bank) {
+                  <em class="badge badge--blue">PRIMARY</em>
+                } @else {
+                  <button type="button" class="mini mini--danger" (click)="dropBank(d.stock, b)">DROP</button>
                 }
               </li>
             }

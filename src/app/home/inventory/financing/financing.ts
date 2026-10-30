@@ -112,7 +112,6 @@ export class Financing implements OnInit {
   private readonly carService = inject(CarService);
   private readonly destroyRef = inject(DestroyRef);
 
-  /* ---------- partner catalogue ---------- */
   partners = signal<FinancePartner[]>(FINANCE_PARTNERS_FALLBACK);
 
   readonly activePartners = computed(() =>
@@ -130,10 +129,8 @@ export class Financing implements OnInit {
     return this.partnerFor(bank)?.logo ?? '';
   }
 
-  /* ---------- mode ---------- */
   mode = signal<'search' | 'add'>('search');
 
-  /* ---------- state ---------- */
   query = signal('');
   bank = signal<string>('all');
   selected = signal<Set<string>>(new Set());
@@ -146,21 +143,17 @@ export class Financing implements OnInit {
   all = signal<FinanceRow[]>([]);
   totalInventory = signal(0);
 
-  /* add-mode search */
   addQuery = signal('');
   addResults = signal<AddCandidate[]>([]);
   addBusy = signal(false);
 
-  /* edit modal — note replaces pending applications */
   editOpen = signal(false);
   editStocks = signal<string[]>([]);
   editForm = signal({ rate: 14, deposit: 20, term: 60, note: '' });
 
-  /* details modal (read-only) */
   detailsOpen = signal(false);
   detailsRow = signal<FinanceRow | null>(null);
 
-  /* ---------- derived ---------- */
   stats = computed(() => {
     const rows = this.all();
     const financed = rows.length;
@@ -193,7 +186,6 @@ export class Financing implements OnInit {
     return rows.length > 0 && rows.every((r) => !r.active);
   });
 
-  /* ---------- lifecycle ---------- */
   ngOnInit(): void {
     this.loadPartners();
     this.load();
@@ -207,7 +199,7 @@ export class Financing implements OnInit {
         next: (list) => {
           if (Array.isArray(list) && list.length) this.partners.set(list);
         },
-        error: () => { /* keep fallback */ },
+        error: () => {},
       });
   }
 
@@ -277,7 +269,6 @@ export class Financing implements OnInit {
     return set.slice(0, 4).join(' · ') + (set.length > 4 ? ` +${set.length - 4}` : '');
   }
 
-  /* ---------- helpers ---------- */
   val(e: Event): string {
     return (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   }
@@ -335,20 +326,19 @@ export class Financing implements OnInit {
     this.partnerMenu.set(false);
   }
 
-  /* ---------- mode ---------- */
   enterAddMode(): void {
     this.mode.set('add');
     this.addQuery.set('');
     this.addResults.set([]);
     this.addRequested.emit();
   }
+
   exitAddMode(): void {
     this.mode.set('search');
     this.addQuery.set('');
     this.addResults.set([]);
   }
 
-  /* ---------- add-mode search (only unfinanced cars) ---------- */
   searchAddCars(term: string): void {
     this.addQuery.set(term);
     const q = term.trim();
@@ -430,7 +420,6 @@ export class Financing implements OnInit {
     });
   }
 
-  /* ---------- selection ---------- */
   toggleSel(id: string): void {
     this.selected.update((s) => {
       const next = new Set(s);
@@ -439,7 +428,6 @@ export class Financing implements OnInit {
     });
   }
 
-  /* ---------- row: pause / resume ---------- */
   toggleActive(stock: string): void {
     const row = this.all().find((r) => r.stock === stock);
     if (!row) return;
@@ -448,7 +436,6 @@ export class Financing implements OnInit {
     this.persist(row.id, this.fullFinance(row, { active: next }));
   }
 
-  /* ---------- row: remove (de-finance entirely) ---------- */
   remove(stock: string): void {
     const row = this.all().find((r) => r.stock === stock);
     if (!row) return;
@@ -461,7 +448,15 @@ export class Financing implements OnInit {
     this.persist(row.id, CLEARED_FINANCE);
   }
 
-  /* ---------- bulk ---------- */
+  dropBank(stock: string, bank: string): void {
+    const row = this.all().find((r) => r.stock === stock);
+    if (!row || row.bank === bank || row.banks.length < 2) return;
+    const next: FinanceRow = { ...row, banks: row.banks.filter((b) => b !== bank) };
+    this.commit(this.all().map((r) => (r.stock === stock ? next : r)));
+    if (this.detailsRow()?.stock === stock) this.detailsRow.set(next);
+    this.persist(row.id, this.fullFinance(next));
+  }
+
   togglePartnerMenu(e: Event): void {
     e.stopPropagation();
     this.partnerMenu.update((v) => !v);
@@ -472,22 +467,18 @@ export class Financing implements OnInit {
     const partner = this.partnerFor(bank);
     const next = this.all().map((r) => {
       if (!sel.has(r.stock)) return r;
-      const nextBanks = r.banks.includes(bank) ? [...r.banks] : [...r.banks, bank];
+      const secondary = r.banks.filter((b) => b !== r.bank && b !== bank);
       return {
         ...r,
         bank,
-        banks: nextBanks,
+        banks: [bank, ...secondary],
         rate: partner?.defaults.rate ?? r.rate,
         deposit: partner?.defaults.deposit ?? r.deposit,
         term: partner?.defaults.term ?? r.term,
       };
     });
     this.commit(next);
-    next
-      .filter((r) => sel.has(r.stock))
-      .forEach((r) =>
-        this.persist(r.id, this.fullFinance(r, { banks: r.banks, primaryBank: bank })),
-      );
+    next.filter((r) => sel.has(r.stock)).forEach((r) => this.persist(r.id, this.fullFinance(r)));
     this.partnerMenu.set(false);
   }
 
@@ -507,7 +498,6 @@ export class Financing implements OnInit {
     removed.forEach((r) => this.persist(r.id, CLEARED_FINANCE));
   }
 
-  /* ---------- edit modal ---------- */
   openEdit(): void {
     const stocks = [...this.selected()];
     if (!stocks.length) return;
@@ -583,7 +573,6 @@ export class Financing implements OnInit {
       });
   }
 
-  /* ---------- details modal (read-only) ---------- */
   openDetails(row: FinanceRow, e?: Event): void {
     e?.stopPropagation();
     this.detailsRow.set(row);
