@@ -1,12 +1,15 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
 import {
   SaveCarResponse,
   DecodedVin,
   CarRecord,
   CarListResult,
   Pagination,
+  FinanceRecord,
+  FinancePartner,
+  FINANCE_PARTNERS_FALLBACK,
 } from './interfaces/car-interface';
 import { StockNoGenerator } from './helper/stock-no-generator';
 
@@ -24,7 +27,6 @@ const titleCase = (s: string) =>
    Response normalisation helpers
    ------------------------------------------------------------------ */
 
-/** Unwrap common envelopes: { car }, { data }, { result }, { record }, { item }. */
 function unwrap<T>(res: unknown): T | null {
   if (res == null) return null;
   if (Array.isArray(res)) return (res[0] as T) ?? null;
@@ -38,7 +40,6 @@ function unwrap<T>(res: unknown): T | null {
   return res as T;
 }
 
-/** Pick the first defined value for any of the given keys. */
 function pick<T = unknown>(obj: Record<string, unknown>, ...keys: string[]): T | undefined {
   for (const k of keys) {
     const v = obj[k];
@@ -84,6 +85,76 @@ function asStringArray(v: unknown): string[] {
   return [];
 }
 
+/** Normalise the embedded finance subdocument. Undefined when absent. */
+function normaliseFinance(raw: unknown): FinanceRecord | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const f = raw as Record<string, unknown>;
+
+  const banks = Array.isArray(f['banks'])
+    ? (f['banks'] as unknown[]).filter((b): b is string => typeof b === 'string')
+    : [];
+
+  const rawDetails = f['bankDetails'];
+  const bankDetails = Array.isArray(rawDetails)
+    ? (rawDetails as unknown[])
+        .map((d) => {
+          if (!d || typeof d !== 'object') return null;
+          const o = d as Record<string, unknown>;
+          return {
+            bank: asString(o['bank']),
+            fullName: asString(o['fullName']),
+            logo: asString(o['logo']),
+            color: asString(o['color']),
+          };
+        })
+        .filter(
+          (d): d is { bank: string; fullName: string; logo: string; color: string } =>
+            !!d && !!d.bank,
+        )
+    : [];
+
+  const ov = f['overrides'];
+  const overrides =
+    ov && typeof ov === 'object'
+      ? {
+          rate:
+            typeof (ov as Record<string, unknown>)['rate'] === 'number'
+              ? ((ov as Record<string, unknown>)['rate'] as number)
+              : undefined,
+          deposit:
+            typeof (ov as Record<string, unknown>)['deposit'] === 'number'
+              ? ((ov as Record<string, unknown>)['deposit'] as number)
+              : undefined,
+          term:
+            typeof (ov as Record<string, unknown>)['term'] === 'number'
+              ? ((ov as Record<string, unknown>)['term'] as number)
+              : undefined,
+        }
+      : {};
+
+  return {
+    enabled: f['enabled'] === true,
+    banks,
+    primaryBank:
+      typeof f['primaryBank'] === 'string' ? (f['primaryBank'] as string) : undefined,
+    bankFullName:
+      typeof f['bankFullName'] === 'string' ? (f['bankFullName'] as string) : undefined,
+    bankLogo:
+      typeof f['bankLogo'] === 'string' ? (f['bankLogo'] as string) : undefined,
+    bankColor:
+      typeof f['bankColor'] === 'string' ? (f['bankColor'] as string) : undefined,
+    rate: asNumber(f['rate'], 0) || undefined,
+    deposit: asNumber(f['deposit'], 0) || undefined,
+    term: asNumber(f['term'], 0) || undefined,
+    maxAmount: asNumber(f['maxAmount'], 0) || undefined,
+    monthly: asNumber(f['monthly'], 0) || undefined,
+    pending: asNumber(f['pending'], 0),
+    active: f['active'] !== false,
+    overrides,
+    bankDetails,
+  };
+}
+
 function normaliseCar(raw: unknown): CarRecord | null {
   const src = unwrap<Record<string, unknown>>(raw);
   if (!src) return null;
@@ -111,6 +182,8 @@ function normaliseCar(raw: unknown): CarRecord | null {
         })
         .filter((d): d is { label: string; fileName: string } => !!d && !!d.label)
     : [];
+
+  const finance = normaliseFinance(pick<unknown>(src, 'finance'));
 
   return {
     id: asString(pick(src, 'id', '_id')),
@@ -155,16 +228,12 @@ function normaliseCar(raw: unknown): CarRecord | null {
     ),
     banks: asStringArray(pick(src, 'banks', 'financingBanks')),
     documents,
+    finance,
     createdAt: asString(pick(src, 'createdAt')) || undefined,
     updatedAt: asString(pick(src, 'updatedAt')) || undefined,
   };
 }
 
-/**
- * Normalises a list response such as
- * { success, pagination: {...}, count, cars: [...] }
- * (also tolerates a bare array or { data | items | results: [...] }).
- */
 function normaliseCarList(raw: unknown): CarListResult {
   let rows: unknown[] = [];
   let paginationRaw: Record<string, unknown> = {};
@@ -257,23 +326,16 @@ export class CarService {
       );
   }
 
-  /** Raw search (unchanged) – returns the backend response as-is. */
   searchCar(body: Record<string, unknown> = {}): Observable<unknown> {
     return this.http.post(`${API_URL}/cars/search`, body);
   }
 
-  /** Search returning normalised CarRecord[] plus pagination. */
   searchCars(body: Record<string, unknown> = {}): Observable<CarListResult> {
     return this.http
       .post<unknown>(`${API_URL}/cars/search`, body)
       .pipe(map((res) => normaliseCarList(res)));
   }
 
-  /**
-   * Cars flagged `recommended` and visible on the website.
-   * The filter is sent to the backend AND re-applied client-side, so it
-   * still works if the backend ignores unknown filter keys.
-   */
   getRecommendedCars(limit = 10): Observable<CarRecord[]> {
     return this.http
       .post<unknown>(`${API_URL}/cars/search`, {
@@ -307,9 +369,17 @@ export class CarService {
       );
   }
 
-  /**
-   * Decodes a VIN with the free NHTSA vPIC service (CORS-enabled).
-   */
+  getFinancePartners(): Observable<FinancePartner[]> {
+    return this.http
+      .get<{ success: boolean; partners: FinancePartner[] }>(
+        `${API_URL}/finance/partners`,
+      )
+      .pipe(
+        map((res) => (Array.isArray(res?.partners) ? res.partners : [])),
+        catchError(() => of(FINANCE_PARTNERS_FALLBACK)),
+      );
+  }
+
   decodeVin(vin: string): Observable<DecodedVin> {
     const url = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(
       vin,
@@ -388,7 +458,7 @@ export class CarService {
     body.append('data', JSON.stringify(data));
     photos.forEach((f) => body.append('photos', f, f.name));
     documents
-      .filter((f) => f.size > 0) // skip placeholder files that only carry a server name
+      .filter((f) => f.size > 0)
       .forEach((f) => body.append('documents', f, f.name));
     return body;
   }

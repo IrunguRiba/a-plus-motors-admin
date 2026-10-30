@@ -388,27 +388,35 @@
       @if (v().financing) {
         <div class="row row--vin">
           <label class="field">
-            <span class="lbl">Financing bank(s)</span>
-            <input
-              class="control"
-              type="text"
-              autocomplete="off"
-              placeholder="Type a bank name and press Enter"
-              [formControl]="bankDraft"
+            <span class="lbl">Financing partner</span>
+            <select
+              class="control select"
+              [formControl]="partnerDraft"
               [class.control--bad]="showErrors() && bankMissing()"
-              (keydown.enter)="addBank(); $event.preventDefault()"
-            />
+            >
+              <option value="" disabled>
+                {{ partnersLoading() ? 'Loading partners…' : 'Select a partner…' }}
+              </option>
+              @for (p of availablePartners(); track p.bank) {
+                <option [value]="p.bank">{{ p.bank }} — {{ p.fullName }}</option>
+              }
+            </select>
           </label>
           <div class="field">
             <span class="lbl lbl--ghost">&nbsp;</span>
-            <button type="button" class="btn btn--ghost btn--field" (click)="addBank()">
-              ADD BANK
+            <button
+              type="button"
+              class="btn btn--ghost btn--field"
+              [disabled]="!partnerDraft.value"
+              (click)="addBank()"
+            >
+              ADD PARTNER
             </button>
           </div>
         </div>
 
         @if (showErrors() && bankMissing()) {
-          <span class="err">Add at least one bank for financing</span>
+          <span class="err">Add at least one partner for financing</span>
         }
 
         @if (banks().length) {
@@ -416,10 +424,15 @@
             @for (b of banks(); track b) {
               <button
                 type="button"
-                class="chip chip--on"
+                class="chip chip--on chip--bank"
                 [attr.aria-label]="'Remove ' + b"
                 (click)="removeBank(b)"
               >
+                @if (partnerLogo(b)) {
+                  <img class="chip__logo" [src]="partnerLogo(b)" [alt]="b" />
+                } @else {
+                  <i class="chip__dot" [style.background]="partnerColor(b)"></i>
+                }
                 {{ b }} ✕
               </button>
             }
@@ -665,15 +678,13 @@
 
     <!-- Actions -->
     @if (mode() === 'edit' && editModeEmpty()) {
-      <!-- Edit mode, no car loaded: no buttons, just a hint -->
       <div class=" actions--hint" role="note">
         <p class="actions__hint">
           You are in <strong (click)='goToTop()'>EDIT MODE</strong>. Enter a stock number above and click
-          <strong (click)='goToTop()'>{{ stockButtonLabel() }}</strong> to load a vehicle. 
+          <strong (click)='goToTop()'>{{ stockButtonLabel() }}</strong> to load a vehicle.
         </p>
       </div>
     } @else if (mode() === 'edit') {
- 
       <div class="actions">
         <button
           type="button"
@@ -694,7 +705,6 @@
         </button>
       </div>
     } @else {
-      <!-- Add mode: SAVE DRAFT · SUBMIT FOR REVIEW -->
       <div class="actions">
         <button
           type="button"

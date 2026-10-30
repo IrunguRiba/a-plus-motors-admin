@@ -6,6 +6,7 @@ import {
   EventEmitter,
   HostListener,
   OnDestroy,
+  OnInit,
   Output,
   ViewChild,
   computed,
@@ -25,6 +26,7 @@ import { finalize, map, startWith } from 'rxjs';
 
 import { CarService, DecodedVin } from '../../../car-service';
 import { CarRecord, Doc, Notice, Photo } from '../../../interfaces/car-interface';
+import { FinancePartner } from '../../../interfaces/car-interface';
 
 type Stage = 'draft' | 'review' | 'live';
 type Status = 'draft' | 'submitted';
@@ -40,7 +42,7 @@ type Mode = 'add' | 'edit';
   styleUrls: ['./add-car.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AddCar implements OnDestroy {
+export class AddCar implements OnInit, OnDestroy {
   done = 'checkmark.png';
   add = 'plus.png';
   @Output() submitted = new EventEmitter<Record<string, unknown>>();
@@ -106,10 +108,31 @@ export class AddCar implements OnDestroy {
     { requireSync: true },
   );
 
-  /* ---------- extra UI state ---------- */
-  readonly bankDraft = new FormControl('', { nonNullable: true });
+  /* ---------- finance partners (DB-backed) ---------- */
+  readonly partners = signal<FinancePartner[]>([]);
+  readonly partnersLoading = signal(false);
+  readonly partnerDraft = new FormControl<string>('', { nonNullable: true });
   readonly banks = signal<string[]>([]);
 
+  readonly activePartners = computed(() =>
+    this.partners().filter((p) => p.active !== false),
+  );
+  readonly availablePartners = computed(() => {
+    const chosen = new Set(this.banks());
+    return this.activePartners().filter((p) => !chosen.has(p.bank));
+  });
+
+  partnerFor(bank: string): FinancePartner | undefined {
+    return this.partners().find((p) => p.bank === bank);
+  }
+  partnerLogo(bank: string): string {
+    return this.partnerFor(bank)?.logo ?? '';
+  }
+  partnerColor(bank: string): string {
+    return this.partnerFor(bank)?.color ?? '#999999';
+  }
+
+  /* ---------- extra UI state ---------- */
   readonly features = signal<string[]>([
     'Leather seats',
     'Sunroof',
@@ -176,17 +199,14 @@ export class AddCar implements OnDestroy {
     return phrase.length > 0 && typed === phrase;
   });
 
-  /** True only when a car is actually loaded in edit mode. */
   readonly canDelete = computed(
     () => this.mode() === 'edit' && !!this.carId() && !!this.stockNo(),
   );
 
-  /** Edit-mode save/update actions enabled only when a car is loaded. */
   readonly canUpdate = computed(
     () => this.mode() === 'edit' && !!this.carId() && !!this.stockNo(),
   );
 
-  /** True when edit mode has no car loaded yet — show the hint, hide actions. */
   readonly editModeEmpty = computed(
     () => this.mode() === 'edit' && !this.carId(),
   );
@@ -228,7 +248,6 @@ export class AddCar implements OnDestroy {
     return saved ? `ADDING · SAVED ${saved}` : 'ADDING · NOT SAVED YET';
   });
 
-  /* ---------- action button labels (mode-aware) ---------- */
   readonly saveButtonLabel = computed(() => {
     if (this.saving()) return 'SAVING…';
     return this.mode() === 'edit' ? 'SAVE & UPDATE' : 'SAVE DRAFT';
@@ -278,6 +297,24 @@ export class AddCar implements OnDestroy {
     this.refreshStockPreview();
   }
 
+  ngOnInit(): void {
+    this.loadPartners();
+  }
+
+  private loadPartners(): void {
+    this.partnersLoading.set(true);
+    this.api
+      .getFinancePartners()
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.partnersLoading.set(false)),
+      )
+      .subscribe({
+        next: (list: FinancePartner[]) => this.partners.set(list),
+        error: () => this.partners.set([]),
+      });
+  }
+
   /* ---------- helpers ---------- */
   fmt(n: number): string {
     return n ? n.toLocaleString('en-US') : '';
@@ -294,10 +331,6 @@ export class AddCar implements OnDestroy {
 
   bad(c: AbstractControl): boolean {
     return this.showErrors() && c.invalid;
-  }
-
-  private now(): string {
-    return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   }
 
   sectionOk(keys: (keyof typeof this.f)[]): boolean {
@@ -544,7 +577,13 @@ export class AddCar implements OnDestroy {
         return merged;
       });
 
-      this.banks.set(this.toStringArray(c['banks']));
+      /* Load banks from the embedded finance block if present, else legacy array */
+      const financeBlock = (c as { finance?: { banks?: string[] } }).finance;
+      const embeddedBanks = Array.isArray(financeBlock?.banks)
+        ? financeBlock!.banks!.filter((b): b is string => typeof b === 'string')
+        : [];
+      const legacyBanks = this.toStringArray(c['banks']);
+      this.banks.set(embeddedBanks.length ? embeddedBanks : legacyBanks);
 
       const rawDocs = c['documents'];
       let docsFromServer: { label: string; fileName: string }[] = [];
@@ -761,12 +800,14 @@ export class AddCar implements OnDestroy {
     this.f.financing.setValue(!this.f.financing.value);
   }
 
+  /* ---------- banks ---------- */
   addBank(): void {
-    const b = this.bankDraft.value.trim();
-    if (b && !this.banks().some((x) => x.toLowerCase() === b.toLowerCase())) {
+    const b = this.partnerDraft.value;
+    if (!b) return;
+    if (!this.banks().includes(b)) {
       this.banks.update((l) => [...l, b]);
     }
-    this.bankDraft.setValue('');
+    this.partnerDraft.setValue('');
   }
 
   removeBank(b: string): void {
@@ -952,7 +993,7 @@ export class AddCar implements OnDestroy {
     this.form.markAsUntouched();
     this.showErrors.set(false);
 
-    this.bankDraft.setValue('');
+    this.partnerDraft.setValue('');
     this.banks.set([]);
     this.selected.set(new Set());
     this.adding.set(false);
@@ -1008,6 +1049,7 @@ export class AddCar implements OnDestroy {
   private snapshot(status: Status): Record<string, unknown> {
     const v = this.form.getRawValue();
     const previewStock = this.mode() === 'add' ? this.stockPreview() : this.stockNo();
+    const chosenBanks = v.financing ? this.banks() : [];
 
     return {
       ...v,
@@ -1016,7 +1058,12 @@ export class AddCar implements OnDestroy {
       make: v.make.trim(),
       model: v.model.trim(),
       margin: v.price - v.cost,
-      banks: v.financing ? this.banks() : [],
+      banks: chosenBanks,
+      finance: {
+        enabled: !!v.financing && chosenBanks.length > 0,
+        banks: chosenBanks,
+        primaryBank: chosenBanks[0] ?? undefined,
+      },
       features: [...this.selected()],
       photos: this.photos().map((p) => p.url),
       documents: this.docs()
@@ -1030,7 +1077,6 @@ export class AddCar implements OnDestroy {
     };
   }
 
-  /** In edit mode, preserve the car's current stage; in add mode, use draft. */
   private statusForSave(): Status {
     if (this.mode() === 'edit') {
       return this.stage() === 'review' || this.stage() === 'live' ? 'submitted' : 'draft';
@@ -1046,7 +1092,6 @@ export class AddCar implements OnDestroy {
     this.persist('submitted');
   }
 
-  /** Used by the "UPDATE & SUBMIT" button in edit mode. */
   updateAndSubmit(): void {
     if (!this.canUpdate()) return;
     this.persist('submitted');
@@ -1134,6 +1179,7 @@ export class AddCar implements OnDestroy {
           }),
       });
   }
+
   goToTop(): void {
     const root: HTMLElement = this.hostView?.nativeElement ?? this.hostRef.nativeElement;
     root.scrollIntoView({ behavior: 'smooth', block: 'start' });

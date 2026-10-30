@@ -6,6 +6,7 @@ import {
   ElementRef,
   EventEmitter,
   HostListener,
+  OnInit,
   Output,
   ViewChild,
   computed,
@@ -13,7 +14,8 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { forkJoin } from 'rxjs';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter, forkJoin } from 'rxjs';
 import { CarService } from '../../../car-service';
 import { CarRecord } from '../../../interfaces/car-interface';
 
@@ -70,7 +72,7 @@ const REASON_WEIGHT: Record<string, number> = {
   styleUrls: ['./recommended.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Recommended {
+export class Recommended implements OnInit {
   @Output() published = new EventEmitter<string[]>();
   @Output() previewRequested = new EventEmitter<string[]>();
   @Output() historyRequested = new EventEmitter<void>();
@@ -80,6 +82,7 @@ export class Recommended {
 
   private readonly carService = inject(CarService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
 
   /**
    * Last-saved server state per stock no. `recommended` is what the DB
@@ -163,6 +166,37 @@ export class Recommended {
     this.load();
   }
 
+  ngOnInit(): void {
+    // Angular reuses the component instance when the user navigates away and
+    // back, so the constructor (and its `load()`) won't run again. Reload
+    // whenever the router ends a navigation that lands on this view so the
+    // Recommended panel always reflects the latest server state.
+    this.router.events
+      .pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((e) => {
+        if (this.isRecommendedRoute(e.urlAfterRedirects) && !this.publishing()) {
+          this.load();
+        }
+      });
+  }
+
+  private isRecommendedRoute(url: string): boolean {
+    return /(^|\/)recommended(\/|$|\?|#)/.test(url);
+  }
+
+  /* ---------- public refresh API ---------- */
+  /**
+   * Public API so a parent can force a refresh (e.g. after editing a car,
+   * after a publish elsewhere, or on demand). Safe to call at any time;
+   * it simply re-fetches the first page of cars and re-hydrates state.
+   */
+  refresh(): void {
+    this.load();
+  }
+
   /* ---------- backend ---------- */
   load(): void {
     this.loading.set(true);
@@ -179,8 +213,10 @@ export class Recommended {
 
           // Only cars the DB already marks as recommended. If none, the
           // Recommended panel starts completely empty (no defaults).
+          // Drop phantom IDs (cars that no longer exist server-side).
+          const validStocks = new Set(cars.map((c) => c.stockNo));
           const savedRecommended = cars
-            .filter((c) => c.recommended === true)
+            .filter((c) => c.recommended === true && validStocks.has(c.stockNo))
             .slice(0, this.maxSlots)
             .map((c) => c.stockNo);
           this.featuredIds.set(savedRecommended);
@@ -486,6 +522,17 @@ export class Recommended {
     if (e.key === 'Escape') {
       this.closePopovers();
       this.closeDetails();
+    }
+  }
+
+  /**
+   * Reload when the browser window regains focus (e.g. the user edited cars in
+   * another tab). Skipped while a publish is in flight to avoid clobbering UI.
+   */
+  @HostListener('window:focus')
+  onWindowFocus(): void {
+    if (!this.publishing()) {
+      this.load();
     }
   }
 

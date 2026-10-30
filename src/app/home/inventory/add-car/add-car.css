@@ -597,6 +597,23 @@ button {
   margin-top: 14px;
 }
 
+.chip--bank {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chip__logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+.chip__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
 .chip--feature {
   display: inline-flex;
   align-items: center;
@@ -1327,7 +1344,6 @@ button {
 }
 .actions--hint {
   padding: 12px 14px;
-
 }
 
 .actions__hint {
